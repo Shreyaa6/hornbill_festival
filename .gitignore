@@ -43,3 +43,29 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Firebase / Google Services secrets
+android/app/google-services.json
+!android/app/google-services.json.example
+
+# Binaries and reference
+*.apk
+*.aab
+app-reference/
+ref.mp4
+*.mp4
+
+# Extraction dumps & scratch files
+all_bundle_strings.txt
+extracted_strings.txt
+kisama_landmarks_stalls.txt
+extracted_festivals.json
+extracted_tribes.json
+festivals.json
+full_18_festivals.json
+full_18_tribes.json
+parsed_landmarks.json
+parsed_stalls.json
+tribes.json
+test_check.kt
+

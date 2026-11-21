@@ -1,5 +1,20 @@
 package com.example.hornbill_festival
 
+import android.graphics.Color
+import android.os.Build
+import android.os.Bundle
+import androidx.core.view.WindowCompat
 import io.flutter.embedding.android.FlutterActivity
 
-class MainActivity : FlutterActivity()
+class MainActivity : FlutterActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+            window.isStatusBarContrastEnforced = false
+        }
+        window.navigationBarColor = Color.parseColor("#F6F6F6")
+    }
+}
+
