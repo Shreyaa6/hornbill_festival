@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'home_dashboard_screen.dart';
 import 'photo_contest_screen.dart';
 
-class HomeFlowScreen extends StatefulWidget {
+class HomeFlowScreen extends StatelessWidget {
   final ValueChanged<int>? onSwitchTab;
   final ValueChanged<bool>? onHeaderVisibilityChanged;
 
@@ -12,54 +12,21 @@ class HomeFlowScreen extends StatefulWidget {
     this.onHeaderVisibilityChanged,
   });
 
-  @override
-  State<HomeFlowScreen> createState() => HomeFlowScreenState();
-}
-
-class HomeFlowScreenState extends State<HomeFlowScreen> {
-  bool _isPhotoContestOpen = false;
-  final GlobalKey<PhotoContestScreenState> _contestKey =
-      GlobalKey<PhotoContestScreenState>();
-
-  void openPhotoContest() {
-    setState(() {
-      _isPhotoContestOpen = true;
-    });
-    widget.onHeaderVisibilityChanged?.call(false);
-  }
-
-  void goBackToHome() {
-    setState(() {
-      _isPhotoContestOpen = false;
-    });
-    widget.onHeaderVisibilityChanged?.call(true);
+  void _openPhotoContest(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const PhotoContestScreen(),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: !_isPhotoContestOpen,
-      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop && _isPhotoContestOpen) {
-          if (_contestKey.currentState?.handleBack() == true) {
-            return;
-          }
-          goBackToHome();
-        }
-      },
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 200),
-        child: _isPhotoContestOpen
-            ? PhotoContestScreen(
-                key: _contestKey,
-                onBack: goBackToHome,
-              )
-            : HomeDashboardScreen(
-                key: const ValueKey('home_dashboard_view'),
-                onSwitchTab: widget.onSwitchTab,
-                onOpenPhotoContest: openPhotoContest,
-              ),
-      ),
+    return HomeDashboardScreen(
+      key: const ValueKey('home_dashboard_view'),
+      onSwitchTab: onSwitchTab,
+      onOpenPhotoContest: () => _openPhotoContest(context),
     );
   }
 }

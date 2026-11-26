@@ -5,12 +5,16 @@ import '../models/stall.dart';
 import '../models/event.dart';
 import '../models/hotel.dart';
 import '../models/taxi.dart';
+import 'hotels_data.dart';
+import 'taxis_data.dart';
 
 class AppData {
   // Banners
   static const List<String> homeBanners = [
     "https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/carousel%2F1%2Fthumbnail_1.jpg?alt=media&token=ebb7ba82-640c-4550-bf30-e2787f2dc16b",
-    "https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/carousel%2F2%2Fthumbnail_2.jpg?alt=media&token=6be8f3ab-4605-483b-ab40-d44e50176ec9",
+    "https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/carousel%2Fthumbnail_4.jpg?alt=media&token=83bc1495-3d4d-4523-97dc-8b1953c92fb3",
+    "https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/carousel%2Fthumbnail_5.jpg?alt=media&token=cd634257-8a95-4306-a51a-8f89ec784d23",
+    "https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/carousel%2Fthumbnail_6.jpg?alt=media&token=8c620de6-ed07-4851-96bb-ee286e87b2b4",
   ];
 
   static const List<String> hornbillBanners = [
@@ -174,7 +178,7 @@ class AppData {
       district: "Kohima / Chumoukedima",
       festival: "Sekrenyi",
       image: "https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/tribes%2FThe-Angami-11-26-2024.png?alt=media&token=c81eeeb7-40c2-487b-bb66-70e28f3224b1",
-      description: "Angami Tribe is based on Kohima district. The Sekrenyi festival of the Angamis falls on the 25th day of the Angami month of Kezei. It is a celebration of purification accompanied with feasting and singing. A highlight of Sekrenyi is the Thekra Hie, when the village youths gather and croon traditional songs throughout the day.",
+      description: "Angami Tribe is based on Kohima district. The Sekrenyi festival of the Angami tribe falls on the 25th day of the Angami month of Kezei. It is a celebration of purification accompanied with feasting and singing. A highlight of Sekrenyi is the Thekra Hie, when the village youths gather and croon traditional songs throughout the day.",
     ),
     Tribe(
       id: 2,
@@ -182,7 +186,7 @@ class AppData {
       district: "Mokokchung",
       festival: "Moatsü & Tsüngremong",
       image: "https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/tribes%2FThe-Ao-11-26-2024.png?alt=media&token=7c77c62b-6895-4672-8822-6b9948c26f00",
-      description: "Ao Tribe is based on Mokokchung district. Moatsu Mong is a bonding festival celebrated by the Ao people after the sowing season. It features vibrant singing, dancing, and the preparation of rice beer, pigs, and cows for slaughter. Women wear traditional attire and partner men in composing warrior songs, eulogizing lovers and the village. Elders encourage the youth to be bold and heroic, a tradition rooted in the community's head-hunting past.",
+      description: "Ao Tribe is based on Mokokchung district. Moatsü Mong is a bonding festival celebrated by the Ao people after the sowing season. It features vibrant singing, dancing, and the preparation of rice beer, pigs, and cows for slaughter. Women wear traditional attire and join men in composing warrior songs, eulogizing lovers and the village. Elders encourage the youth to be bold and heroic, a tradition rooted in the community's head-hunting past.",
     ),
     Tribe(
       id: 3,
@@ -190,7 +194,7 @@ class AppData {
       district: "Phek",
       festival: "Sukrenye & Tsukhenyie",
       image: "https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/tribes%2FThe-Chakhesang-11-26-2024.png?alt=media&token=818b2cba-fa69-4e02-9864-16b11030995c",
-      description: "Chakhesang Tribe is based on Phek district. Sukhrunye, the most important Chakhesang festival, marks the start of a new year with fasting. It lasts for eleven days, ending with the Tsupra-kuku festival. On the first morning, the village priest says Rees the first rooster, and men bathe in a sacred well, invoking blessings for strength, long life, and a good harvest. Boys and girls undergo consecration through religious rituals during the festival.",
+      description: "Chakhesang Tribe is based on Phek district. Sukrenye, the most important Chakhesang festival, marks the start of a new year with spring. It lasts for eleven days, ending with the Tsukhenye festival. On the first morning, the village priest sacrifices the first rooster, and men bathe in a sacred well, invoking blessings for strength, long life, and a good harvest. Boys and girls undergo consecration through religious rituals during the festival.",
     ),
     Tribe(
       id: 4,
@@ -198,7 +202,7 @@ class AppData {
       district: "Tuensang",
       festival: "Naknyulüm",
       image: "https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/tribes%2FThe-Chang-11-13-2024.png?alt=media&token=2f631798-62a8-4ad1-bc15-0ec7012c04dc",
-      description: "Chang Tribe is based on Tuensang district. Naknyulem is a bonding festival celebrated by the Chang and neighboring Naga tribes. It involves exchanging gifts, delicacies like meat, wine, and bread, and a bevy of festivities. Activities include top spinning, tug of war, high and long jumps, climbing oiled poles, and grabbling meat from bamboo ropes. Women masquerade with the kensgsem instrument.",
+      description: "Chang Tribe is based on Tuensang district. Naknyulem is a bonding festival celebrated by the Chang and neighboring Naga tribes. It involves exchanging gifts, delicacies like meat, wine, and bread, and a day of festivities. Activities include top spinning, tug-of-war, high and long jumps, climbing oiled poles, and grabbing meat from bamboo ropes. Women compete with the Kongkhim instrument.",
     ),
     Tribe(
       id: 5,
@@ -206,7 +210,7 @@ class AppData {
       district: "Dimapur",
       festival: "Wangala",
       image: "https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/tribes%2FThe-Garo-11-26-2024.png?alt=media&token=9891c361-b4ef-4933-90d2-97063d891c1d",
-      description: "Garo Tribe is based on Dimapur district. Wangala is a post-harvest festival celebrated by the Garo tribe of Nagaland. In this post-harvest festival, they give thanks to 'Misi Saljong', the Sun God of Fertility, for blessing the people with a rich harvest. Competitions such as Gando-Biding or Wa'a-Rong-Si-ka (Bamboo-biting), Matchu-Rong-Sika (Wrestling), Wapong-Sika (Bamboo pole-pushing) are also organized.",
+      description: "Garo Tribe is based on Dimapur district. Wangala is a post harvest festival celebrated by the Garo tribe of Nagaland. In this post harvest festival, they give thanks to \"Misi Saljong\", the Sun God of Fertility, for blessing the people with a rich harvest. Competition such as Budu Sala (Tug of War), Reong Dea (stone lifting), Makal Pala (Wrestling), Wapong Sika (Bamboo pole pushing) are also organized.",
     ),
     Tribe(
       id: 6,
@@ -214,7 +218,7 @@ class AppData {
       district: "Dimapur",
       festival: "Bushu Dima",
       image: "https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/tribes%2FThe-Kachari-11-26-2024.png?alt=media&token=f0147eb6-4171-419b-ab00-84c483a992e1",
-      description: "Kachari Tribe is based on Dimapur district. The Bushu or Bushu Jiba is a post-harvest festival which usually falls in the month of January after the paddy is harvested, threshed and stored. Although the exact date is not fixed, people generally celebrate it around a full moon night in January because it is believed to be auspicious.",
+      description: "Kachari Tribe is based on Dimapur district. The Bushu (or Bushu Jiba) is a post harvest festival which usually falls in the month of January after the paddy is harvested, threshed and stored. Although the exact date is not fixed, people generally celebrate it around a full moon night in January because it is believed to be auspicious.",
     ),
     Tribe(
       id: 7,
@@ -230,7 +234,7 @@ class AppData {
       district: "Mon",
       festival: "Aoleang Monyü",
       image: "https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/tribes%2FThe-Konyak-11-26-2024.png?alt=media&token=d1f11a88-a734-4a47-a97e-128a1ba48c5e",
-      description: "Konyak Tribe is based on Mon district. Aoleang Monyu, the ancient spring festival of the Konyak tribe, is celebrated in the first week of April to mark the end of the old year and welcome the new one. It symbolizes the arrival of spring and involves prayers for a bountiful harvest. The Konyaks, who believe they are descendants of Noah and crossed a mythical gate called Alamkaphan (the gate of the sun), honor their roots and offer prayers to God for prosperity in the coming year.",
+      description: "Konyak Tribe is based on Mon district. Aoleang Monyü, the ancient spring festival of the Konyak tribe, is celebrated in the first week of April to mark the end of the old year and welcome the new one. It symbolizes the arrival of spring and involves prayers for a bountiful harvest. The Konyaks, who believe they are descendants of Noah and crossed a mythical gate called Alemkaphan (the gate of the sun), honor their roots and offer prayers to God for prosperity in the coming year.",
     ),
     Tribe(
       id: 9,
@@ -238,7 +242,7 @@ class AppData {
       district: "Peren",
       festival: "Mimkut",
       image: "https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/tribes%2FThe-Kuki-11-26-2024.png?alt=media&token=928dff76-844c-4608-bdc1-c4e3497a8033",
-      description: "Kuki Tribe is based on Peren district. 'Mimkut' is a harvest festival celebrated by the Kukis for a week, starting on the 17th day of the Kuki month of Tolbol. The festival, which aims to appease Thilha, the demon, involves sacrifices and rituals performed by the village medicine-man (Thempu) to propitiate the spirit of the demon-god. The Kukis, who migrated from Manipur and later to Meluri near the Indo-Myanmar border, observe this festival as part of their cultural tradition.",
+      description: "Kuki Tribe is based on Peren district. \"Mimkut\" is a harvest festival celebrated by the Kukis for a week, starting on the 17th day of the Kuki month of Tolbol. The festival, which aims to appease Thilha, the demon, involves sacrifices and rituals performed by the village medicine man (Thempu) to propitiate the spirit of the demon-god. The Kukis, who migrated from Manipur and later to Meluri near the Indo-Myanmar border, observe this festival as part of their cultural tradition.",
     ),
     Tribe(
       id: 10,
@@ -246,15 +250,17 @@ class AppData {
       district: "Wokha",
       festival: "Tokhü Emong",
       image: "https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/tribes%2FThe-Lotha-11-26-2024.png?alt=media&token=99b151d5-1057-4ffb-806b-ef60732e8aee",
-      description: "Lotha Tribe is based on Wokha district. Tokhu Emong is the harvest festival of the Lothas and the entire village participates in the celebrations. Every household prepares food & drink for friends, families, neighbours that are invited to each other's house and this continues for days. The main features of the feast are community songs, dances, feast, fun and frolic.",
+      description: "Lotha Tribe is based on Wokha district. Tokhü Emong is the harvest festival of the Lothas and the entire village participates in the celebrations. Every household prepares food & drink for friends, families, neighbours that are invited to each other's house and this continues for days. The main features of the feast are community songs, dances, feast, fun and frolic.",
     ),
     Tribe(
       id: 11,
+      docId: "0N9giBEPFtvXZxuCbwUF",
       name: "Phom",
       district: "Longleng",
       festival: "Monyü",
-      image: "https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/tribes%2FThe-Phom-11-26-2024.png?alt=media&token=58d09fc1-892a-4b8d-9c62-a473575da155",
-      description: "Phom Tribe is based on Longleng district. A new year festival, the arrival of Monyu is announced by the beating of log drums with a distinct tune traditionally called Lan-Nyangshem. A feature of this festival is the men folk showing respect to their married daughters or sisters by offering them specially prepared food and rice beer - this custom reflects the high status of women in a Phom household.",
+      image: "https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/tribes%2Ftribe_phom_custom.jpg?alt=media&token=eaed4c61-c379-48c7-8864-6fd6201d7f22",
+      description: "The Phom tribe lives in the Longleng district, celebrated for their historic log drum beating traditions, pottery, and spinning. They mark the arrival of spring with the vibrant Monyu festival, featuring traditional folk chants, rituals, and agricultural blessings.",
+      createdAt: "2026-11-26T11:50:50.127Z",
     ),
     Tribe(
       id: 12,
@@ -262,7 +268,7 @@ class AppData {
       district: "Phek (Meluri)",
       festival: "Yemshe",
       image: "https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/tribes%2FThe-Pochury-11-26-2024.png?alt=media&token=52d73e69-e5a7-46d7-bad6-350fc3826cde",
-      description: "Pochury Tribe is based on Phek district. Yemshe is the festival for blessing the upcoming harvest. All the Pochuries celebrate this festival with great pomp and gaiety, anticipating a good harvest. Yemshe is observed only on October 05 in tune with the traditional days of the event.",
+      description: "Pochury Tribe is based on Phek district. Yemshe is the festival for blessing the upcoming harvest. All the Pochuries celebrate this festival with great pomp and gaiety anticipating a good harvest. Yemshe is observed only on October 05 in tune with the traditional days of the event.",
     ),
     Tribe(
       id: 13,
@@ -286,12 +292,12 @@ class AppData {
       district: "Zunheboto",
       festival: "Tuluni & Ahuna",
       image: "https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/tribes%2FThe-Sumi-11-26-2024.png?alt=media&token=24090ea0-3f40-410a-8bf7-ba5d4eb5f159",
-      description: "Sumi Tribe is based on Zunheboto district. Tuluni is a festival of great significance for the Sumi Nagas celebrated with feasts, prayers, and cultural dances.",
+      description: "Sumi Tribe is based on Zunheboto district. Tuluni is a festival of great significance for the Sumi Nagas, celebrated with feasts, prayers, and cultural dances celebrating community bonding and harvest joy.",
     ),
     Tribe(
       id: 16,
       name: "Tikhir",
-      district: "Shamatore / Kiphire",
+      district: "Shamator / Kiphire",
       festival: "Tsonglaknyi",
       image: "https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/tribes%2FThe-Tikhir-11-26-2024.png?alt=media&token=b7b3f429-e6b9-4ab2-b734-bc1a1850a331",
       description: "Tikhir Tribe is based on Shamator district. Tsonglaknyi is a festival of peace and friendship celebrated by the Tikhir tribe with great joy and community harmony.",
@@ -302,7 +308,7 @@ class AppData {
       district: "Shamator",
       festival: "Metümnyo",
       image: "https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/tribes%2FThe-Yimkhiung-11-26-2024.png?alt=media&token=cfa09fe3-ce31-4122-8c1d-1959b3ec709f",
-      description: "Yimkhiung Tribe is based on Shamator district. Metümneo is a festival celebrated after the harvest of millet, focused on mourning departed souls and praying for life, prosperity, and peace.",
+      description: "Yimkhiung Tribe is based on Shamator district. Metümnyo is a festival celebrated after the harvest of millet, focused on mourning departed souls and praying for life, prosperity, and peace.",
     ),
     Tribe(
       id: 18,
@@ -778,10 +784,10 @@ class AppData {
       pdfUrl: "https://docs.google.com/gview?embedded=true&url=https://hornbill-nagaland.appspot.com/day10.pdf",
       events: [
         TimelineEvent(time: "10:00 AM", title: "Final Cultural Showcase: Best of the Hornbill", description: "Encore performances by the most celebrated tribal troupes of the festival.", icon: "trophy"),
-        TimelineEvent(time: "02:00 PM", title: "Photo Contest & Handicraft Awards Ceremony", description: "Honoring prize winners of the Hornbill Photo Contest 2025 and artisan guilds.", icon: "trophy"),
+        TimelineEvent(time: "02:00 PM", title: "Photo Contest & Handicraft Awards Ceremony", description: "Honoring prize winners of the Hornbill Photo Contest 2026 and artisan guilds.", icon: "trophy"),
         TimelineEvent(time: "04:30 PM", title: "Closing Ceremony & Valedictory Addresses", description: "Official addresses by state dignitaries, guests of honor, and tribal council leaders.", icon: "flag"),
         TimelineEvent(time: "06:00 PM", title: "The Great Hornbill Bonfire & Unity Dance", description: "Thousands of participants and visitors join hands for the grand unity dance around the roaring bonfire.", icon: "fire"),
-        TimelineEvent(time: "08:00 PM", title: "Grand Fireworks Spectacular & Farewell", description: "Breathtaking fireworks light up the Kisama night sky to close the 26th Hornbill Festival.", icon: "star"),
+        TimelineEvent(time: "08:00 PM", title: "Grand Fireworks Spectacular & Farewell", description: "Breathtaking fireworks light up the Kisama night sky to close the 27th Hornbill Festival.", icon: "star"),
       ],
     ),
   ];
@@ -825,146 +831,10 @@ class AppData {
   ];
 
   // Hotels and Homestays
-  static final List<Hotel> hotels = [
-    Hotel(
-      id: "h1",
-      name: "Niathu Resort",
-      type: "Resort",
-      district: "Chumoukedima",
-      address: "7th Mile, Chumoukedima, Nagaland",
-      rating: 4.8,
-      price: 6500,
-      strikethroughPrice: 8500,
-      image: "https://lh3.googleusercontent.com/p/AF1QipMncVGb9YoyZyNKUDgld3nKA043vuAQeMF46Zh5=s1360-w1360-h1020",
-      phone: "+913862240999",
-      isFeatured: true,
-      roomsAvailable: true,
-      facilities: ["Free Wifi", "Fooding", "Pool", "AC Rooms", "24x7 Power", "Parking", "Fridge"],
-    ),
-    Hotel(
-      id: "h2",
-      name: "Hotel Vivor",
-      type: "Hotel",
-      district: "Kohima",
-      address: "Near High Court Junction, Kohima",
-      rating: 4.6,
-      price: 4500,
-      strikethroughPrice: 5800,
-      image: "https://lh3.googleusercontent.com/p/AF1QipO2bv-5Ta8S3DFjMsXT1zRQJYGJ24Ine_qMRmFB=s1360-w1360-h1020-rw",
-      phone: "+913702806588",
-      isFeatured: true,
-      roomsAvailable: true,
-      facilities: ["Free Wifi", "Fooding", "AC Rooms", "24x7 Power", "Parking"],
-    ),
-    Hotel(
-      id: "h3",
-      name: "Dzuleke Eco Homestay",
-      type: "Homestay",
-      district: "Kohima",
-      address: "Dzuleke Village, 40 km from Kohima",
-      rating: 4.9,
-      price: 2200,
-      strikethroughPrice: 2800,
-      image: "https://s7ap1.scene7.com/is/image/incredibleindia/dzukou-valley-kohima-nagaland-attr-hero-1?qlt=82&ts=1726671043746",
-      phone: "+919862998877",
-      isFeatured: true,
-      roomsAvailable: true,
-      facilities: ["Free Wifi", "Fooding", "24x7 Power", "Parking"],
-    ),
-    Hotel(
-      id: "h4",
-      name: "Hotel Japfu",
-      type: "Hotel",
-      district: "Kohima",
-      address: "PR Hill, Kohima, Nagaland",
-      rating: 4.2,
-      price: 3200,
-      strikethroughPrice: 4000,
-      image: "https://img.traveltriangle.com/blog/wp-content/uploads/2019/12/cover-places-to-visit-in-kohima.jpg",
-      phone: "+913702240211",
-      isFeatured: false,
-      roomsAvailable: true,
-      facilities: ["Free Wifi", "Fooding", "24x7 Power", "Parking"],
-    ),
-    Hotel(
-      id: "h5",
-      name: "Kisama Green Homestay",
-      type: "Homestay",
-      district: "Kohima",
-      address: "Near Kisama Heritage Gate, Kigwema",
-      rating: 4.7,
-      price: 2500,
-      strikethroughPrice: 3500,
-      image: "https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/landmark%2Fphoto_eH7SyxnFO4gtFGmYbizU.jpg?alt=media&token=f00aabaa-d855-4aeb-b668-fbcac350d4ce",
-      phone: "+918730991122",
-      isFeatured: true,
-      roomsAvailable: true,
-      facilities: ["Free Wifi", "Fooding", "24x7 Power", "Parking"],
-    ),
-    Hotel(
-      id: "h6",
-      name: "Dimapur Grand Guest House",
-      type: "Guest House",
-      district: "Dimapur",
-      address: "Circular Road, Dimapur",
-      rating: 4.3,
-      price: 1800,
-      strikethroughPrice: 2400,
-      image: "https://im.hunt.in/cg/Dimapur/City-Guide/ruins.jpg",
-      phone: "+913862224411",
-      isFeatured: false,
-      roomsAvailable: true,
-      facilities: ["Free Wifi", "Fooding", "AC Rooms", "Parking"],
-    ),
-  ];
+  static List<Hotel> get hotels => HotelsData.allHotels;
 
   // Taxis
-  static final List<Taxi> taxis = [
-    Taxi(
-      id: "t1",
-      driverName: "Kevichusa Angami",
-      vehicleName: "Toyota Innova Crysta",
-      vehicleType: "SUV / 7 Seater",
-      district: "Kohima",
-      phone: "+919862112233",
-      rating: 4.9,
-      price: "₹3,500 / day",
-      servingDistricts: ["Kohima", "Dimapur / Chümoukedima", "Wokha", "Phek"],
-    ),
-    Taxi(
-      id: "t2",
-      driverName: "Imtisunep Ao",
-      vehicleName: "Mahindra Scorpio 4x4",
-      vehicleType: "SUV / 4WD",
-      district: "Dimapur",
-      phone: "+919436123456",
-      rating: 4.8,
-      price: "₹3,800 / day",
-      servingDistricts: ["Dimapur / Chümoukedima", "Kohima", "Mokokchung", "Wokha", "Mon"],
-    ),
-    Taxi(
-      id: "t3",
-      driverName: "Vituolie Solo",
-      vehicleName: "Maruti Suzuki Swift Dzire",
-      vehicleType: "Sedan / AC",
-      district: "Kohima",
-      phone: "+918730889900",
-      rating: 4.7,
-      price: "₹2,400 / day",
-      servingDistricts: ["Kohima", "Dimapur / Chümoukedima"],
-    ),
-    Taxi(
-      id: "t4",
-      driverName: "Renbomo Lotha",
-      vehicleName: "Mahindra Bolero",
-      vehicleType: "SUV / Rugged Terrain",
-      district: "Wokha",
-      phone: "+919862776655",
-      rating: 4.6,
-      price: "₹2,800 / day",
-      servingDistricts: ["Wokha", "Kohima", "Mokokchung", "Zünheboto"],
-    ),
-  ];
+  static List<Taxi> get taxis => TaxisData.allTaxis;
 
   // Cafes & Food
   static final List<Map<String, dynamic>> cafes = [
@@ -1034,12 +904,12 @@ class AppData {
   // Notifications
   static final List<Map<String, String>> notifications = [
     {
-      "title": "Welcome to the 26th Hornbill Festival",
+      "title": "Welcome to the 27th Hornbill Festival",
       "date": "Nov 25, 2024",
-      "body": "The 26th edition of the Hornbill Festival commences from December 1st at Kisama Heritage Village. Please carry your valid Inner Line Permit (ILP) or digital pass for hassle-free entry.",
+      "body": "The 27th edition of the Hornbill Festival commences from December 1st at Kisama Heritage Village. Please carry your valid Inner Line Permit (ILP) or digital pass for hassle-free entry.",
     },
     {
-      "title": "Hornbill Photo Contest 2025 Submissions Open",
+      "title": "Hornbill Photo Contest 2026 Submissions Open",
       "date": "Nov 20, 2024",
       "body": "Submit your best festival photography. Grand cash prizes and citations to be awarded on the final day. Note: AI generated and irrelevant photos will be disqualified.",
     },

@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import '../../data/taxis_data.dart';
 import '../../models/taxi.dart';
+import '../../services/firebase_service.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/filter_bottom_sheet.dart';
 import 'view_taxi_screen.dart';
 
 class TaxisScreen extends StatefulWidget {
@@ -10,13 +14,15 @@ class TaxisScreen extends StatefulWidget {
 }
 
 class _TaxisScreenState extends State<TaxisScreen> {
-  String _selectedDistrict = "Dimapur / Chumoukedima";
+  String _selectedDistrict = "Dimapur / Chümoukedima";
 
   final List<String> _districts = [
-    "Dimapur / Chumoukedima",
+    "All Districts",
+    "Dimapur / Chümoukedima",
     "Kiphire",
     "Kohima",
     "Longleng",
+    "Meluri",
     "Mokokchung",
     "Mon",
     "Niuland",
@@ -28,149 +34,21 @@ class _TaxisScreenState extends State<TaxisScreen> {
     "Tuensang",
     "Wokha",
     "Zünheboto",
-    "Meluri",
   ];
 
-  final List<Taxi> _taxis = [
-    Taxi(
-      id: "taxi_1",
-      driverName: "Thejakilie Miasalhou",
-      vehicleName: "Bolero BS6 - 4 Seater",
-      vehicleType: "4 Seater",
-      district: "Kohima",
-      phone: "7085674965",
-      rating: 4.8,
-      price: "₹3,500 / day",
-      servingDistricts: [
-        "Dimapur / Chümoukedima",
-        "Kohima",
-        "Meluri",
-        "Kiphire",
-        "Longleng",
-        "Mokokchung",
-        "Mon",
-        "Niuland",
-        "Noklak",
-        "Peren",
-        "Phek",
-        "Shamator",
-        "Tseminyü",
-        "Tuensang",
-        "Wokha",
-        "Zünheboto"
-      ],
-    ),
-    Taxi(
-      id: "taxi_2",
-      driverName: "Reche Patrick Wetsah",
-      vehicleName: "Bolero B6 - 4 Seater",
-      vehicleType: "4 Seater",
-      district: "Kohima",
-      phone: "9862112233",
-      rating: 4.7,
-      price: "₹3,200 / day",
-      servingDistricts: ["Dimapur / Chümoukedima", "Kohima", "Wokha", "Phek"],
-    ),
-    Taxi(
-      id: "taxi_3",
-      driverName: "Bizo Vero",
-      vehicleName: "Kia Carens - 7 Seater",
-      vehicleType: "7 Seater",
-      district: "Dimapur",
-      phone: "9436123456",
-      rating: 4.9,
-      price: "₹4,200 / day",
-      servingDistricts: ["Dimapur / Chümoukedima", "Kohima", "Mokokchung"],
-    ),
-    Taxi(
-      id: "taxi_4",
-      driverName: "Samuel",
-      vehicleName: "Tata Indigo - 4 Seater",
-      vehicleType: "4 Seater",
-      district: "Dimapur",
-      phone: "8730889900",
-      rating: 4.6,
-      price: "₹2,600 / day",
-      servingDistricts: ["Dimapur / Chümoukedima", "Kohima"],
-    ),
-    Taxi(
-      id: "taxi_5",
-      driverName: "Mhathung Tungoe",
-      vehicleName: "Renault Kiger - 4 Seater",
-      vehicleType: "4 Seater",
-      district: "Dimapur",
-      phone: "9862776655",
-      rating: 4.8,
-      price: "₹3,000 / day",
-      servingDistricts: ["Dimapur / Chümoukedima", "Wokha", "Kohima"],
-    ),
-  ];
-
-  void _showDistrictPicker() {
-    showModalBottomSheet(
+  void _showDistrictPicker() async {
+    final selected = await showAppFilterBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        return Container(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-              const Text(
-                'Select District',
-                style: TextStyle(
-                  fontFamily: 'Lato',
-                  fontWeight: FontWeight.w800,
-                  fontSize: 18,
-                  color: Color(0xFF1E293B),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: _districts.length,
-                  itemBuilder: (context, idx) {
-                    final d = _districts[idx];
-                    final isSel = _selectedDistrict == d;
-                    return ListTile(
-                      title: Text(
-                        d,
-                        style: TextStyle(
-                          fontFamily: 'Lato',
-                          fontWeight: isSel ? FontWeight.w800 : FontWeight.w500,
-                          color: isSel ? const Color(0xFF20B08D) : const Color(0xFF1E293B),
-                        ),
-                      ),
-                      trailing: isSel
-                          ? const Icon(Icons.check, color: Color(0xFF20B08D))
-                          : null,
-                      onTap: () {
-                        setState(() {
-                          _selectedDistrict = d;
-                        });
-                        Navigator.pop(ctx);
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+      title: 'Select District',
+      items: _districts,
+      selectedItem: _selectedDistrict,
+      sortAlphabetically: true,
     );
+    if (selected != null && mounted) {
+      setState(() {
+        _selectedDistrict = selected;
+      });
+    }
   }
 
   @override
@@ -178,47 +56,26 @@ class _TaxisScreenState extends State<TaxisScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF003848),
       body: SafeArea(
-        bottom: false,
+        bottom: true,
         child: Column(
           children: [
             // Deep Teal Top Header
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      IconButton(
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
-                        onPressed: () => Navigator.pop(context),
+                      Text(
+                        'Book Taxis',
+                        style: AppTextStyles.headerTitle,
                       ),
-                      const SizedBox(width: 14),
-                      const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Book Taxis',
-                            style: TextStyle(
-                              fontFamily: 'Lato',
-                              fontWeight: FontWeight.w900,
-                              fontSize: 28,
-                              color: Colors.white,
-                              height: 1.1,
-                            ),
-                          ),
-                          SizedBox(height: 2),
-                          Text(
-                            'Taxis • Outstation Cabs',
-                            style: TextStyle(
-                              fontFamily: 'Lato',
-                              fontSize: 13,
-                              color: Colors.white70,
-                            ),
-                          ),
-                        ],
+                      SizedBox(height: 3),
+                      Text(
+                        'Taxis • Outstation Cabs',
+                        style: AppTextStyles.headerSubtitle,
                       ),
                     ],
                   ),
@@ -262,29 +119,84 @@ class _TaxisScreenState extends State<TaxisScreen> {
             // White Rounded Body Sheet
             Expanded(
               child: Container(
+                clipBehavior: Clip.antiAlias,
                 decoration: const BoxDecoration(
                   color: Color(0xFFF9FAFB),
                   borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
                 ),
                 child: ClipRRect(
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 24, 16, 120),
-                    children: [
-                      Text(
-                        'Find Taxis in ${_selectedDistrict.split('/').first.trim()}',
-                        style: const TextStyle(
-                          fontFamily: 'Lato',
-                          fontWeight: FontWeight.w800,
-                          fontSize: 18,
-                          color: Color(0xFF1E293B),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
+                  child: StreamBuilder<List<Map<String, dynamic>>>(
+                    stream: FirebaseService().getTaxis(),
+                    builder: (context, snapshot) {
+                      List<Taxi> allTaxis;
+                      if (snapshot.hasData) {
+                        allTaxis = snapshot.data!.map((data) {
+                          return Taxi.fromFirestore(data, data['docId']?.toString() ?? '');
+                        }).toList();
+                      } else {
+                        allTaxis = TaxisData.allTaxis;
+                      }
 
-                      // Taxi list items
-                      ..._taxis.map((taxi) => _buildTaxiItem(taxi)),
-                    ],
+                      final filteredTaxis = allTaxis.where((taxi) {
+                        if (!taxi.isActive) return false;
+                        return taxi.isServingDistrict(_selectedDistrict);
+                      }).toList();
+
+                      return ListView(
+                        padding: const EdgeInsets.fromLTRB(16, 24, 16, 120),
+                        children: [
+                          Text(
+                            _selectedDistrict == "All Districts"
+                                ? 'All Available Taxis'
+                                : 'Find Taxis in $_selectedDistrict',
+                            style: const TextStyle(
+                              fontFamily: 'Lato',
+                              fontWeight: FontWeight.w800,
+                              fontSize: 18,
+                              color: Color(0xFF1E293B),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData)
+                            const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(36.0),
+                                child: CircularProgressIndicator(color: Color(0xFF20B08D)),
+                              ),
+                            )
+                          else if (filteredTaxis.isEmpty)
+                            Center(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 20),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.local_taxi_outlined,
+                                      size: 56,
+                                      color: Colors.grey[400],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      'No taxis available in $_selectedDistrict',
+                                      style: const TextStyle(
+                                        fontFamily: 'Lato',
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF64748B),
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          else
+                            ...filteredTaxis.map((taxi) => _buildTaxiItem(taxi)),
+                        ],
+                      );
+                    },
                   ),
                 ),
               ),
@@ -296,9 +208,16 @@ class _TaxisScreenState extends State<TaxisScreen> {
   }
 
   Widget _buildTaxiItem(Taxi taxi) {
-    final isVan = taxi.vehicleName.toLowerCase().contains("7 seater") ||
-        taxi.vehicleName.toLowerCase().contains("carens");
-    final iconAsset = isVan ? 'assets/images/taxi_3d_van.png' : 'assets/images/taxi_3d_yellow.png';
+    final seaterDesc = '${taxi.vehicleType} ${taxi.vehicleName}'.toLowerCase();
+    final is7Seater = seaterDesc.contains("7 seater") ||
+        seaterDesc.contains("7-seater") ||
+        seaterDesc.contains("7seater") ||
+        seaterDesc.contains("carens") ||
+        seaterDesc.contains("innova") ||
+        seaterDesc.contains("traveller") ||
+        seaterDesc.contains("7");
+    final iconAsset =
+        is7Seater ? 'assets/images/jeep.png' : 'assets/images/taxi.png';
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -324,6 +243,14 @@ class _TaxisScreenState extends State<TaxisScreen> {
               height: 44,
               width: 50,
               fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => Image.asset(
+                is7Seater
+                    ? 'assets/images/taxi_3d_van.png'
+                    : 'assets/images/taxi_3d_yellow.png',
+                height: 44,
+                width: 50,
+                fit: BoxFit.contain,
+              ),
             ),
             const SizedBox(width: 16),
             Expanded(

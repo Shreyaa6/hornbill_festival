@@ -13,9 +13,7 @@ class CustomBottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final bottomInset = MediaQuery.of(context).padding.bottom > 0
-        ? MediaQuery.of(context).padding.bottom
-        : MediaQuery.of(context).viewPadding.bottom;
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     final double bottomMargin = bottomInset > 0 ? bottomInset + 10 : 16;
 
     return Positioned(

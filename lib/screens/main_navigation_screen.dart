@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/custom_bottom_bar.dart';
 import '../widgets/app_header_bar.dart';
+import '../services/app_config_service.dart';
 import 'home/home_flow_screen.dart';
 import 'home/notifications_screen.dart';
 import 'culture/cultures_screen.dart';
@@ -27,6 +28,22 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkLiveUpdate();
+    });
+  }
+
+  void _checkLiveUpdate() async {
+    try {
+      final config = await AppConfigService().fetchConfig();
+      if (!mounted) return;
+      if (config.isUpdateAvailable(
+        currentVersion: AppConfigService.currentAndroidVersion,
+        currentAndroidBuild: AppConfigService.currentAndroidBuild,
+      )) {
+        AppConfigService().showUpdateScreen(context, isMandatory: true);
+      }
+    } catch (_) {}
   }
 
   void _onTabTapped(int index) {
@@ -70,7 +87,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       backgroundColor: scaffoldBg,
       body: SafeArea(
         top: shouldShowHeader,
-        bottom: false,
+        bottom: true,
         child: Column(
           children: [
             // Universal Header pinned at top when not on a hero banner screen

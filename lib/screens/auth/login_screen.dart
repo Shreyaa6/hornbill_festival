@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 import '../../data/mock_user.dart';
 import '../../services/firebase_service.dart';
+import '../main_navigation_screen.dart';
+import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -50,27 +52,22 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       await MockUser().setLoggedInUser(user);
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Logged in as ${user.fullName.isNotEmpty ? user.fullName : user.email}'),
-            backgroundColor: const Color(0xFF20B08D),
-          ),
-        );
-      }
-
       if (widget.onLoginSuccess != null) {
         widget.onLoginSuccess!();
-      }
-      if (mounted && Navigator.canPop(context)) {
-        Navigator.pop(context);
+      } else if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
+          (route) => false,
+        );
       }
     } catch (e) {
-      final msg = e.toString().replaceAll('Exception:', '').trim();
+      final msg = _cleanErrorMessage(e);
       setState(() {
-        if (msg.toLowerCase().contains('email') || msg.toLowerCase().contains('no user')) {
+        final lower = msg.toLowerCase();
+        if (lower.contains('email') || lower.contains('account') || lower.contains('user')) {
           _emailError = msg;
-        } else if (msg.toLowerCase().contains('password')) {
+        } else if (lower.contains('password')) {
           _passwordError = msg;
         } else {
           _generalError = msg;
@@ -83,13 +80,44 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  String _cleanErrorMessage(dynamic error) {
+    if (error == null) return "An unexpected error occurred. Please try again.";
+    final str = error.toString().toLowerCase();
+
+    if (str.contains('no user found') || str.contains('user-not-found') || str.contains('invalid-credential')) {
+      return 'No account found with this email. Please check or register.';
+    }
+    if (str.contains('incorrect password') || str.contains('wrong-password')) {
+      return 'Incorrect password. Please try again.';
+    }
+    if (str.contains('invalid-email') || str.contains('invalid email')) {
+      return 'Please enter a valid email address.';
+    }
+    if (str.contains('network') || str.contains('unavailable') || str.contains('timeout') || str.contains('socket')) {
+      return 'Network connection issue. Please check your internet connection.';
+    }
+    if (str.contains('firebase') || str.contains('firestore') || str.contains('[core/no-app]') || str.contains('permission')) {
+      return 'Unable to sign in at the moment. Please try again.';
+    }
+
+    String cleaned = error.toString().replaceAll(RegExp(r'^(Exception:|Error:)\s*', caseSensitive: false), '').trim();
+    cleaned = cleaned.replaceAll(RegExp(r'\[.*?\]\s*'), '').trim();
+    if (cleaned.isEmpty || cleaned.toLowerCase().contains('firebase') || cleaned.toLowerCase().contains('firestore')) {
+      return 'Unable to sign in. Please verify your credentials.';
+    }
+    return cleaned;
+  }
+
   void _handleGuestLogin() {
     MockUser().loginAsGuest();
     if (widget.onLoginSuccess != null) {
       widget.onLoginSuccess!();
-    }
-    if (mounted && Navigator.canPop(context)) {
-      Navigator.pop(context);
+    } else if (mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
+        (route) => false,
+      );
     }
   }
 
@@ -269,7 +297,36 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
 
-              const SizedBox(height: 28),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () async {
+                    final resultEmail = await Navigator.push<String>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ForgotPasswordScreen(
+                          initialEmail: _emailController.text.trim(),
+                        ),
+                      ),
+                    );
+                    if (resultEmail != null && resultEmail.isNotEmpty && mounted) {
+                      _emailController.text = resultEmail;
+                      _passwordController.clear();
+                    }
+                  },
+                  child: const Text(
+                    'Forgot Password?',
+                    style: TextStyle(
+                      fontFamily: 'Lato',
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 12),
 
               // Log In Button
               SizedBox(
@@ -343,7 +400,19 @@ class _LoginScreenState extends State<LoginScreen> {
                       context,
                       MaterialPageRoute(
                         builder: (_) => RegisterScreen(
-                          onRegisterSuccess: widget.onLoginSuccess,
+                          onRegisterSuccess: widget.onLoginSuccess ??
+                              () {
+                                if (mounted) {
+                                  Navigator.pushAndRemoveUntil(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          const MainNavigationScreen(),
+                                    ),
+                                    (route) => false,
+                                  );
+                                }
+                              },
                         ),
                       ),
                     );

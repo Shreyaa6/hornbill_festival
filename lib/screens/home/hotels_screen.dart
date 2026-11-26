@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../models/hotel.dart';
+import '../../data/hotels_data.dart';
+import '../../services/firebase_service.dart';
+import '../../widgets/filter_bottom_sheet.dart';
+import '../../widgets/custom_bottom_bar.dart';
+import '../../theme/app_theme.dart';
 import 'view_hotel_screen.dart';
 
 class HotelsScreen extends StatefulWidget {
@@ -13,304 +19,180 @@ class HotelsScreen extends StatefulWidget {
 class _HotelsScreenState extends State<HotelsScreen> {
   String _selectedDistrict = "All";
   String _selectedCategory = "All"; // "All", "Hotel", "Homestay"
+  final ScrollController _scrollController = ScrollController();
+  int _displayedCount = 8;
+  bool _isLoadingMore = false;
+  int _totalStaysCount = 0;
+
+  Future<void> _makeCall(String phoneNumber) async {
+    final clean = phoneNumber.replaceAll(RegExp(r'[^\d+]'), '');
+    if (clean.isEmpty) return;
+    final uri = Uri.parse('tel:$clean');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 250) {
+      _loadMore();
+    }
+  }
+
+  void _loadMore() {
+    if (_isLoadingMore) return;
+    if (_displayedCount >= _totalStaysCount) return;
+
+    setState(() {
+      _isLoadingMore = true;
+    });
+
+    Future.delayed(const Duration(milliseconds: 250), () {
+      if (mounted) {
+        setState(() {
+          _displayedCount = (_displayedCount + 8).clamp(0, _totalStaysCount);
+          _isLoadingMore = false;
+        });
+      }
+    });
+  }
 
   final List<String> _districts = [
     "All",
-    "Kohima",
-    "Dimapur",
     "Chümoukedima",
-    "Wokha",
+    "Dimapur",
+    "Kiphire",
+    "Kohima",
+    "Longleng",
+    "Meluri",
     "Mokokchung",
     "Mon",
-    "Phek",
-    "Tuensang",
-    "Zünheboto",
-    "Kiphire",
-    "Longleng",
-    "Peren",
+    "Niuland",
     "Noklak",
+    "Peren",
+    "Phek",
     "Shamator",
     "Tseminyü",
-    "Niuland",
-    "Meluri",
+    "Tuensang",
+    "Wokha",
+    "Zünheboto",
   ];
 
-  final List<Hotel> _resorts = [
-    Hotel(
-      id: "resort_1",
-      name: "Zone Naithu",
-      type: "Resort",
-      district: "Chümoukedima",
-      address: "7th Mile, Chumukedima",
-      rating: 4.8,
-      price: 7000,
-      strikethroughPrice: 8500,
-      image: "https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/hotels%2FZoneNiathu_3158079.jpg?alt=media&token=f90b1ad0-d8cb-474c-8182-3531b790d0b0",
-      phone: "7005305794",
-      isFeatured: true,
-      roomsAvailable: true,
-      facilities: ["Free Wifi", "Fooding", "Pool", "AC Rooms", "24x7 Power", "Parking", "Fridge"],
-    ),
-    Hotel(
-      id: "resort_2",
-      name: "Rüdi Resort",
-      type: "Resort",
-      district: "Kohima",
-      address: "Chedema Dzüü Bridge, Phek Road, NH29",
-      rating: 4.7,
-      price: 5500,
-      strikethroughPrice: 7000,
-      image: "https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/hotels%2Fbdheje_3434964.jpg?alt=media&token=f4e710f3-9c58-40d0-9072-aca49bcae351",
-      phone: "6909790114",
-      isFeatured: true,
-      roomsAvailable: true,
-      facilities: ["Free Wifi", "Fooding", "Pool", "AC Rooms", "24x7 Power", "Parking", "Fridge"],
-    ),
-  ];
-
-  final List<Hotel> _allStays = [
-    Hotel(
-      id: "stay_1",
-      name: "Hotel Lavisto",
-      type: "Hotel",
-      district: "Kohima",
-      address: "Opposite to War cemetery midland, Kohima",
-      rating: 4.6,
-      price: 4500,
-      strikethroughPrice: 5500,
-      image: "https://dynamic-media-cdn.tripadvisor.com/media/photo-o/1c/68/01/9c/hotel-lavisto.jpg?w=600&h=-1&s=1",
-      phone: "6909931832",
-      isFeatured: false,
-      roomsAvailable: true,
-      facilities: ["Free Wifi", "Fooding", "AC Rooms", "24x7 Power", "Parking", "Fridge"],
-    ),
-    Hotel(
-      id: "stay_2",
-      name: "Crescent international hotel",
-      type: "Hotel",
-      district: "Kohima",
-      address: "Near Old NST Main Town , Kohima",
-      rating: 4.5,
-      price: 3800,
-      strikethroughPrice: 4800,
-      image: "https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/hotels%2FCrescentinternationalhotel_2456488.jpg?alt=media&token=48f29ea1-93c6-43b9-a2e6-a0833a6ad031",
-      phone: "7005570252",
-      isFeatured: false,
-      roomsAvailable: true,
-      facilities: ["Free Wifi", "Fooding", "AC Rooms", "24x7 Power", "Parking"],
-    ),
-    Hotel(
-      id: "stay_3",
-      name: "Hotel Ariel",
-      type: "Hotel",
-      district: "Kohima",
-      address: "Near ITI office, High School Road, Kohima 797001, Nagaland , Kohima",
-      rating: 4.4,
-      price: 3200,
-      strikethroughPrice: 4000,
-      image: "https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/hotels%2FHotelAriel_8151246.jpg?alt=media&token=7737d91e-355b-426b-8716-e4210d5ec423",
-      phone: "8798029129",
-      isFeatured: false,
-      roomsAvailable: true,
-      facilities: ["Free Wifi", "Fooding", "24x7 Power", "Parking"],
-    ),
-    Hotel(
-      id: "stay_4",
-      name: "MY RETREAT",
-      type: "Homestay",
-      district: "Kohima",
-      address: "ISBT kohima , rutsa model village , T.Khel, KOHIMA",
-      rating: 4.8,
-      price: 2500,
-      strikethroughPrice: 3200,
-      image: "https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/hotels%2FMYRETREAT_8065099.jpg?alt=media&token=185e921b-02db-432a-bd12-fbf1e2e925c4",
-      phone: "8118925326",
-      isFeatured: false,
-      roomsAvailable: true,
-      facilities: ["Free Wifi", "Fooding", "24x7 Power", "Parking", "Fridge"],
-    ),
-    Hotel(
-      id: "stay_5",
-      name: "The Sanctuary",
-      type: "Homestay",
-      district: "Kohima",
-      address: "Jail colony, near kiwi store xl",
-      rating: 4.5,
-      price: 2200,
-      strikethroughPrice: 2800,
-      image: "https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/hotels%2FTheSanctuary_3518529.jpg?alt=media&token=7aa296c0-1d40-44e6-acca-def4e52ec67b",
-      phone: "8794943986",
-      isFeatured: false,
-      roomsAvailable: true,
-      facilities: ["Free Wifi", "Fooding", "24x7 Power"],
-    ),
-    Hotel(
-      id: "stay_6",
-      name: "Grace Guest House",
-      type: "Homestay",
-      district: "Kohima",
-      address: "Officers' Hill, Near Hotel Eden",
-      rating: 4.6,
-      price: 2000,
-      strikethroughPrice: 2600,
-      image: "https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/hotels%2FGraceGuestHouse_7312109.jpg?alt=media&token=85185e88-14f9-4789-932b-85b20acbc43d",
-      phone: "7005305794",
-      isFeatured: false,
-      roomsAvailable: true,
-      facilities: ["Free Wifi", "Fridge", "Parking"],
-    ),
-    Hotel(
-      id: "stay_7",
-      name: "Megoki Homestay",
-      type: "Homestay",
-      district: "Kohima",
-      address: "Khonoma Village",
-      rating: 4.7,
-      price: 1800,
-      strikethroughPrice: 2400,
-      image: "https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/hotels%2FMegokihomestay_4003266.jpg?alt=media&token=1098d744-7906-4750-a1c4-39ab22e22b3b",
-      phone: "7005305981",
-      isFeatured: false,
-      roomsAvailable: true,
-      facilities: ["Fooding", "Parking", "Fridge"],
-    ),
-  ];
-
-  void _showDistrictPicker() {
-    showModalBottomSheet(
+  void _showDistrictPicker() async {
+    final selected = await showAppFilterBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        return Container(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-              const Text(
-                'Select District',
-                style: TextStyle(
-                  fontFamily: 'Lato',
-                  fontWeight: FontWeight.w800,
-                  fontSize: 18,
-                  color: Color(0xFF1E293B),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: _districts.length,
-                  itemBuilder: (context, idx) {
-                    final d = _districts[idx];
-                    final isSel = (_selectedDistrict == d) || (d == "All" && _selectedDistrict == "All");
-                    return ListTile(
-                      title: Text(
-                        d == "All" ? "Any district" : d,
-                        style: TextStyle(
-                          fontFamily: 'Lato',
-                          fontWeight: isSel ? FontWeight.w800 : FontWeight.w500,
-                          color: isSel ? const Color(0xFF20B08D) : const Color(0xFF1E293B),
-                        ),
-                      ),
-                      trailing: isSel
-                          ? const Icon(Icons.check, color: Color(0xFF20B08D))
-                          : null,
-                      onTap: () {
-                        setState(() {
-                          _selectedDistrict = d;
-                        });
-                        Navigator.pop(ctx);
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
+      title: 'Select District',
+      items: _districts,
+      selectedItem: _selectedDistrict,
+      displayLabel: (d) => d == "All" ? "Any district" : d,
+      sortAlphabetically: true,
+    );
+    if (selected != null && mounted) {
+      setState(() {
+        _selectedDistrict = selected;
+        _displayedCount = 8;
+      });
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(0);
+      }
+    }
+  }
+
+  Widget _buildCardImage(Hotel hotel, {required double height}) {
+    final assetPath = 'assets/images/hotels/${hotel.id}.jpg';
+    return Image.asset(
+      assetPath,
+      height: height,
+      width: double.infinity,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) {
+        final photo = (hotel.photoUrl != null && hotel.photoUrl!.isNotEmpty)
+            ? hotel.photoUrl!
+            : (hotel.image.startsWith('http') ? hotel.image : '');
+
+        if (photo.isNotEmpty) {
+          return CachedNetworkImage(
+            imageUrl: photo,
+            height: height,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            memCacheWidth: 600,
+            placeholder: (_, __) => _buildPlaceholder(height),
+            errorWidget: (_, __, ___) => _buildPlaceholder(height),
+          );
+        }
+
+        final fallbackAsset = hotel.image.startsWith('assets/') ? hotel.image : '';
+        if (fallbackAsset.isNotEmpty) {
+          return Image.asset(
+            fallbackAsset,
+            height: height,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _buildPlaceholder(height),
+          );
+        }
+
+        return _buildPlaceholder(height);
       },
+    );
+  }
+
+  Widget _buildPlaceholder(double height) {
+    return Container(
+      height: height,
+      color: const Color(0xFFE2E8F0),
+      alignment: Alignment.center,
+      child: const Icon(Icons.hotel_rounded, color: Color(0xFF94A3B8), size: 36),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    // Filter stays
-    final filteredStays = _allStays.where((s) {
-      final matchesDistrict = _selectedDistrict == "All" ||
-          s.district.toLowerCase() == _selectedDistrict.toLowerCase();
-      if (!matchesDistrict) return false;
-
-      if (_selectedCategory == "Hotel") {
-        return s.type.toLowerCase() == "hotel";
-      } else if (_selectedCategory == "Homestay") {
-        return s.type.toLowerCase() == "homestay" || s.type.toLowerCase() == "guest house";
-      }
-      return true;
-    }).toList();
-
     final sectionTitle = _selectedCategory == "Hotel"
-        ? "Hotel"
-        : (_selectedCategory == "Homestay" ? "Guest House" : "Hotels / Homestays");
-
-    final promoBanner = _selectedCategory == "Hotel"
-        ? 'assets/images/stays_promo_blue.png'
-        : 'assets/images/homestay_promo_green.png';
+        ? "Hotels"
+        : (_selectedCategory == "Homestay" ? "Homestays & Guest Houses" : "Hotels / Homestays");
 
     return Scaffold(
       backgroundColor: const Color(0xFF003848),
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
+      body: Stack(
+        children: [
+          SafeArea(
+            bottom: true,
+            child: Column(
+              children: [
             // Dark Teal Top Header
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      IconButton(
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
-                        onPressed: () => Navigator.pop(context),
+                      Text(
+                        'Explore Stays',
+                        style: AppTextStyles.headerTitle,
                       ),
-                      const SizedBox(width: 14),
-                      const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Explore Stays',
-                            style: TextStyle(
-                              fontFamily: 'Lato',
-                              fontWeight: FontWeight.w900,
-                              fontSize: 28,
-                              color: Colors.white,
-                              height: 1.1,
-                            ),
-                          ),
-                          SizedBox(height: 2),
-                          Text(
-                            'Hotels • Homestays • Resorts',
-                            style: TextStyle(
-                              fontFamily: 'Lato',
-                              fontSize: 13,
-                              color: Colors.white70,
-                            ),
-                          ),
-                        ],
+                      SizedBox(height: 3),
+                      Text(
+                        'Hotels • Homestays • Resorts',
+                        style: AppTextStyles.headerSubtitle,
                       ),
                     ],
                   ),
@@ -325,6 +207,13 @@ class _HotelsScreenState extends State<HotelsScreen> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(30),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -351,14 +240,18 @@ class _HotelsScreenState extends State<HotelsScreen> {
                   const SizedBox(height: 14),
 
                   // Filter Pills: All | Hotel | Homestay
-                  Row(
-                    children: [
-                      _buildFilterPill("All"),
-                      const SizedBox(width: 10),
-                      _buildFilterPill("Hotel"),
-                      const SizedBox(width: 10),
-                      _buildFilterPill("Homestay"),
-                    ],
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    clipBehavior: Clip.none,
+                    child: Row(
+                      children: [
+                        _buildFilterPill("All"),
+                        const SizedBox(width: 10),
+                        _buildFilterPill("Hotel"),
+                        const SizedBox(width: 10),
+                        _buildFilterPill("Homestay"),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -367,86 +260,229 @@ class _HotelsScreenState extends State<HotelsScreen> {
             // White Rounded Body Sheet
             Expanded(
               child: Container(
+                clipBehavior: Clip.antiAlias,
                 decoration: const BoxDecoration(
                   color: Color(0xFFF9FAFB),
                   borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
                 ),
                 child: ClipRRect(
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 120),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Promo Banner
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: Image.asset(
-                            promoBanner,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
+                  child: StreamBuilder<List<Hotel>>(
+                    stream: FirebaseService().getHotels(),
+                    builder: (context, snapshot) {
+                      final allLoaded = snapshot.hasData
+                          ? snapshot.data!
+                          : HotelsData.allHotels;
+
+                      bool isResort(Hotel s) {
+                        final type = s.type.toLowerCase();
+                        final name = s.name.toLowerCase();
+                        return s.isFeatured ||
+                            type.contains('resort') ||
+                            name.contains('resort') ||
+                            name.contains('rudi') ||
+                            name.contains('rüdi') ||
+                            s.id == 'TugCrwLHmkLAtw6x90Vj';
+                      }
+
+                      // Featured Resorts: ALWAYS SHOW ALL RESORTS across all districts and categories
+                      final resorts = allLoaded.where(isResort).toList();
+
+                      // Guarantee all standard resorts from HotelsData are present
+                      for (final fallbackResort in HotelsData.allHotels.where(isResort)) {
+                        final alreadyPresent = resorts.any((r) =>
+                            r.id == fallbackResort.id ||
+                            r.name.toLowerCase() == fallbackResort.name.toLowerCase());
+                        if (!alreadyPresent) {
+                          resorts.add(fallbackResort);
+                        }
+                      }
+
+                      // Filter regular stays for the "All Stays" list by district and category
+                      final filteredStays = allLoaded.where((s) {
+                        if (isResort(s)) return false;
+
+                        // District Filter
+                        if (_selectedDistrict != "All" &&
+                            s.district.toLowerCase() != _selectedDistrict.toLowerCase()) {
+                          return false;
+                        }
+
+                        // Category Filter (Hotel / Homestay)
+                        if (_selectedCategory == "Hotel") {
+                          return s.type.toLowerCase() == "hotel";
+                        } else if (_selectedCategory == "Homestay") {
+                          return s.type.toLowerCase() == "homestay" ||
+                              s.type.toLowerCase() == "guest house";
+                        }
+                        return true;
+                      }).toList();
+
+                      // Update total stays count for incremental loading
+                      _totalStaysCount = filteredStays.length;
+                      final visibleCount =
+                          _displayedCount.clamp(0, filteredStays.length);
+
+                      return CustomScrollView(
+                        controller: _scrollController,
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        slivers: [
+                          const SliverToBoxAdapter(
+                            child: SizedBox(height: 20),
                           ),
-                        ),
 
-                        const SizedBox(height: 22),
-
-                        // Section 1: Featured Resorts
-                        Row(
-                          children: const [
-                            Icon(Icons.local_fire_department_rounded, color: Color(0xFF1E293B), size: 24),
-                            SizedBox(width: 6),
-                            Text(
-                              'Featured Resorts',
-                              style: TextStyle(
-                                fontFamily: 'Lato',
-                                fontWeight: FontWeight.w800,
-                                fontSize: 18,
-                                color: Color(0xFF1E293B),
+                          // Section 1: Featured Resorts
+                          if (resorts.isNotEmpty) ...[
+                            const SliverToBoxAdapter(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.local_fire_department_rounded,
+                                        color: Color(0xFF1E293B), size: 24),
+                                    const SizedBox(width: 6),
+                                    const Expanded(
+                                      child: Text(
+                                        'Featured Resorts',
+                                        style: TextStyle(
+                                          fontFamily: 'Lato',
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 18,
+                                          color: Color(0xFF1E293B),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                          ],
-                        ),
+                            const SliverToBoxAdapter(
+                              child: SizedBox(height: 14),
+                            ),
 
-                        const SizedBox(height: 14),
-
-                        // Horizontal Resorts Carousel
-                        SizedBox(
-                          height: 220,
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: _resorts.length,
-                            itemBuilder: (context, index) {
-                              final resort = _resorts[index];
-                              return _buildHorizontalResortCard(resort);
-                            },
-                          ),
-                        ),
-
-                        const SizedBox(height: 24),
-
-                        // Section 2: Hotel / Homestay / Guest House
-                        Row(
-                          children: [
-                            const Icon(Icons.local_fire_department_rounded, color: Color(0xFF1E293B), size: 24),
-                            const SizedBox(width: 6),
-                            Text(
-                              sectionTitle,
-                              style: const TextStyle(
-                                fontFamily: 'Lato',
-                                fontWeight: FontWeight.w800,
-                                fontSize: 18,
-                                color: Color(0xFF1E293B),
+                            // Smooth Full-Bleed Horizontal Resorts Strip (no side clipping)
+                            SliverToBoxAdapter(
+                              child: SizedBox(
+                                height: 206,
+                                child: ListView.builder(
+                                  scrollDirection: Axis.horizontal,
+                                  physics: const BouncingScrollPhysics(),
+                                  clipBehavior: Clip.none,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16),
+                                  itemCount: resorts.length,
+                                  itemBuilder: (context, index) {
+                                    return _buildHorizontalResortCard(
+                                        resorts[index]);
+                                  },
+                                ),
                               ),
                             ),
+                            const SliverToBoxAdapter(
+                              child: SizedBox(height: 14),
+                            ),
                           ],
-                        ),
 
-                        const SizedBox(height: 14),
+                          // Section 2: Hotel / Homestay / Guest House Header
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                      Icons.local_fire_department_rounded,
+                                      color: Color(0xFF1E293B),
+                                      size: 24),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      sectionTitle,
+                                      style: const TextStyle(
+                                        fontFamily: 'Lato',
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 18,
+                                        color: Color(0xFF1E293B),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SliverToBoxAdapter(
+                            child: SizedBox(height: 14),
+                          ),
 
-                        // Vertical List of Stays
-                        ...filteredStays.map((stay) => _buildVerticalStayCard(stay)),
-                      ],
-                    ),
+                          // Section 2: Virtualized Lazy List of Stays (incremental load)
+                          if (filteredStays.isEmpty)
+                            SliverToBoxAdapter(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 40, horizontal: 16),
+                                alignment: Alignment.center,
+                                child: const Text(
+                                  'No stays found for this selection.\nTry picking "Any district" or another category.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontFamily: 'Lato',
+                                    fontSize: 14,
+                                    color: Color(0xFF64748B),
+                                  ),
+                                ),
+                              ),
+                            )
+                          else
+                            SliverPadding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
+                              sliver: SliverList(
+                                delegate: SliverChildBuilderDelegate(
+                                  (context, index) {
+                                    if (index < visibleCount) {
+                                      return _buildVerticalStayCard(
+                                          filteredStays[index]);
+                                    }
+
+                                    // Auto-trigger load more when bottom loader is reached
+                                    if (!_isLoadingMore &&
+                                        visibleCount < filteredStays.length) {
+                                      WidgetsBinding.instance
+                                          .addPostFrameCallback(
+                                              (_) => _loadMore());
+                                    }
+
+                                    return const Padding(
+                                      padding:
+                                          EdgeInsets.symmetric(vertical: 20),
+                                      child: Center(
+                                        child: SizedBox(
+                                          width: 24,
+                                          height: 24,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2.5,
+                                            color: Color(0xFF20B08D),
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  childCount: visibleCount +
+                                      (visibleCount < filteredStays.length ||
+                                              _isLoadingMore
+                                          ? 1
+                                          : 0),
+                                ),
+                              ),
+                            ),
+
+                          // Bottom spacing for bottom bar
+                          const SliverToBoxAdapter(
+                            child: SizedBox(height: 120),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ),
               ),
@@ -454,7 +490,17 @@ class _HotelsScreenState extends State<HotelsScreen> {
           ],
         ),
       ),
-    );
+
+      // Custom Bottom Navigation Bar
+      CustomBottomBar(
+        currentIndex: 0,
+        onTap: (index) {
+          Navigator.pop(context);
+        },
+      ),
+    ],
+  ),
+);
   }
 
   Widget _buildFilterPill(String label) {
@@ -463,13 +509,17 @@ class _HotelsScreenState extends State<HotelsScreen> {
       onTap: () {
         setState(() {
           _selectedCategory = label;
+          _displayedCount = 8;
         });
+        if (_scrollController.hasClients) {
+          _scrollController.jumpTo(0);
+        }
       },
       child: Container(
         height: 38,
-        padding: const EdgeInsets.symmetric(horizontal: 24),
+        padding: const EdgeInsets.symmetric(horizontal: 22),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFD4FAF1) : Colors.white,
+          color: isSelected ? const Color(0xFF5CD1B4) : Colors.white,
           borderRadius: BorderRadius.circular(22),
         ),
         alignment: Alignment.center,
@@ -477,9 +527,9 @@ class _HotelsScreenState extends State<HotelsScreen> {
           label,
           style: TextStyle(
             fontFamily: 'Lato',
-            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w700,
             fontSize: 14.5,
-            color: isSelected ? const Color(0xFF20B08D) : const Color(0xFF1E293B),
+            color: isSelected ? Colors.white : Colors.black,
           ),
         ),
       ),
@@ -487,6 +537,13 @@ class _HotelsScreenState extends State<HotelsScreen> {
   }
 
   Widget _buildHorizontalResortCard(Hotel resort) {
+    final town = resort.town ?? '';
+    final locationText = resort.address.isNotEmpty
+        ? (town.isNotEmpty && !resort.address.contains(town)
+            ? '${resort.address} , $town'
+            : resort.address)
+        : resort.district;
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -497,57 +554,27 @@ class _HotelsScreenState extends State<HotelsScreen> {
         );
       },
       child: Container(
-        width: 230,
+        width: 255,
         margin: const EdgeInsets.only(right: 14),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFEBEBEB)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
             ),
           ],
         ),
+        clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // Image with heart badge
-            Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                  child: CachedNetworkImage(
-                    imageUrl: resort.image,
-                    height: 135,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    placeholder: (_, __) => Container(color: Colors.grey.shade200),
-                    errorWidget: (_, __, ___) => Container(color: Colors.grey.shade300),
-                  ),
-                ),
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.85),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.favorite_border_rounded,
-                      color: Color(0xFF64748B),
-                      size: 16,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            _buildCardImage(resort, height: 130),
             Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -558,24 +585,26 @@ class _HotelsScreenState extends State<HotelsScreen> {
                     style: const TextStyle(
                       fontFamily: 'Lato',
                       fontWeight: FontWeight.w800,
-                      fontSize: 15.5,
+                      fontSize: 15,
                       color: Color(0xFF1E293B),
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 3),
                   Row(
                     children: [
-                      const Icon(Icons.location_on_outlined, color: Color(0xFF94A3B8), size: 14),
-                      const SizedBox(width: 4),
+                      const Icon(Icons.location_on_outlined,
+                          color: Color(0xFF94A3B8), size: 13),
+                      const SizedBox(width: 3),
                       Expanded(
                         child: Text(
-                          resort.address,
+                          locationText,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontFamily: 'Lato',
                             fontSize: 12,
                             color: Color(0xFF64748B),
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),
@@ -591,6 +620,13 @@ class _HotelsScreenState extends State<HotelsScreen> {
   }
 
   Widget _buildVerticalStayCard(Hotel stay) {
+    final town = stay.town ?? '';
+    final locationText = stay.address.isNotEmpty
+        ? (town.isNotEmpty && !stay.address.contains(town)
+            ? '${stay.address} , $town'
+            : stay.address)
+        : stay.district;
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -601,64 +637,36 @@ class _HotelsScreenState extends State<HotelsScreen> {
         );
       },
       child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
+        margin: const EdgeInsets.only(bottom: 18),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFEBEBEB)),
+          borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 6,
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
               offset: const Offset(0, 2),
             ),
           ],
         ),
+        clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                  child: CachedNetworkImage(
-                    imageUrl: stay.image,
-                    height: 160,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    placeholder: (_, __) => Container(color: Colors.grey.shade200),
-                    errorWidget: (_, __, ___) => Container(color: Colors.grey.shade300),
-                  ),
-                ),
-                Positioned(
-                  top: 10,
-                  right: 10,
-                  child: Container(
-                    padding: const EdgeInsets.all(7),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.85),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.favorite_border_rounded,
-                      color: Color(0xFF64748B),
-                      size: 18,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            _buildCardImage(stay, height: 185),
             Padding(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     stay.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontFamily: 'Lato',
                       fontWeight: FontWeight.w800,
-                      fontSize: 16.5,
+                      fontSize: 17,
                       color: Color(0xFF1E293B),
                     ),
                   ),
@@ -669,13 +677,14 @@ class _HotelsScreenState extends State<HotelsScreen> {
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
-                          stay.address,
+                          locationText,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontFamily: 'Lato',
                             fontSize: 13,
                             color: Color(0xFF64748B),
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),

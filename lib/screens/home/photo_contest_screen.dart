@@ -1,9 +1,17 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../../widgets/dashed_border.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../widgets/filter_bottom_sheet.dart';
+import '../../widgets/cafe_image.dart';
 import '../../services/firebase_service.dart';
 import '../../data/mock_user.dart';
+import '../../theme/app_theme.dart';
 
 class ContestItem {
   final String id;
@@ -37,118 +45,55 @@ class PhotoContestScreen extends StatefulWidget {
 class PhotoContestScreenState extends State<PhotoContestScreen> {
   String _selectedDay = "All Days";
   bool _showToast = false;
+  bool _lastVotedStatus = true;
   Timer? _toastTimer;
   ContestItem? _previewItem;
-  bool _showShareModal = false;
+  late Stream<List<Map<String, dynamic>>> _submissionsStream;
+  late Stream<Set<String>> _userVotesStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _initStreams();
+  }
+
+  void _initStreams() {
+    _submissionsStream = FirebaseService().getSubmissions(dayFilter: _selectedDay);
+    try {
+      final user = MockUser();
+      final userId = user.userId.isNotEmpty
+          ? user.userId
+          : (user.email.isNotEmpty ? user.email : 'guest_user');
+      _userVotesStream = FirebaseService().getUserVotes(userId);
+    } catch (_) {
+      _userVotesStream = Stream.value(<String>{});
+    }
+  }
 
   bool handleBack() {
     if (_previewItem != null) {
       setState(() => _previewItem = null);
       return true;
     }
-    if (_showShareModal) {
-      setState(() => _showShareModal = false);
-      return true;
-    }
     return false;
   }
 
-  final List<ContestItem> _items = [
+  late final List<ContestItem> _fallbackItems = [
     ContestItem(
       id: '1',
-      authorName: 'Tepuduho Benjami...',
+      authorName: 'Tepuduho Benjamin',
       photoAsset: 'assets/images/contest_thumb_1.png',
-      votes: 137,
+      votes: 141,
       day: '08',
-      isVoted: true, // Matches Screenshot 1 where first item is Voted
+      isVoted: false,
     ),
     ContestItem(
       id: '2',
-      authorName: 'Tepuduho Benjami...',
+      authorName: 'Tepuduho Benjamin',
       photoAsset: 'assets/images/contest_thumb_2.png',
-      fullPhotoAsset: 'assets/images/contest_photo_warrior_full.png',
-      votes: 121,
+      fullPhotoAsset: 'assets/images/contest_photo_warrior_full.webp',
+      votes: 123,
       day: '08',
-      isVoted: false,
-    ),
-    ContestItem(
-      id: '3',
-      authorName: 'mountain Tour An...',
-      photoAsset: 'assets/images/contest_thumb_3.png',
-      votes: 105,
-      day: '03',
-      isVoted: false,
-    ),
-    ContestItem(
-      id: '4',
-      authorName: 'Tepuduho Benjami...',
-      photoAsset: 'assets/images/contest_thumb_4.png',
-      votes: 97,
-      day: '08',
-      isVoted: false,
-    ),
-    ContestItem(
-      id: '5',
-      authorName: 'TakeOffpongenex',
-      photoAsset: 'assets/images/contest_thumb_5.png',
-      votes: 42,
-      day: '29',
-      isVoted: false,
-    ),
-    ContestItem(
-      id: '6',
-      authorName: 'Sumesh P Nair',
-      photoAsset: 'assets/images/contest_thumb_6.png',
-      votes: 42,
-      day: '03',
-      isVoted: false,
-    ),
-    ContestItem(
-      id: '7',
-      authorName: 'Tepuduho Benjami...',
-      photoAsset: 'assets/images/contest_thumb_7.png',
-      votes: 37,
-      day: '08',
-      isVoted: false,
-    ),
-    ContestItem(
-      id: '8',
-      authorName: 'TakeOffpongenex',
-      photoAsset: 'assets/images/contest_thumb_8.png',
-      votes: 30,
-      day: '01',
-      isVoted: false,
-    ),
-    ContestItem(
-      id: '9',
-      authorName: 'Lens Sangs',
-      photoAsset: 'assets/images/contest_thumb_9.png',
-      votes: 22,
-      day: '30',
-      isVoted: false,
-    ),
-    ContestItem(
-      id: '10',
-      authorName: 'TakeOffpongenex',
-      photoAsset: 'assets/images/contest_thumb_10.png',
-      votes: 14,
-      day: '02',
-      isVoted: false,
-    ),
-    ContestItem(
-      id: '11',
-      authorName: 'TakeOffpongenex',
-      photoAsset: 'assets/images/contest_thumb_11.png',
-      votes: 12,
-      day: '02',
-      isVoted: false,
-    ),
-    ContestItem(
-      id: '12',
-      authorName: 'TakeOffpongenex',
-      photoAsset: 'assets/images/contest_thumb_12.png',
-      votes: 11,
-      day: '02',
       isVoted: false,
     ),
   ];
@@ -160,39 +105,593 @@ class PhotoContestScreenState extends State<PhotoContestScreen> {
   }
 
   void _handleVote(ContestItem item) {
+    final bool willVote = !item.isVoted;
     setState(() {
-      if (item.isVoted) {
-        item.isVoted = false;
-        item.votes = (item.votes > 0) ? item.votes - 1 : 0;
-      } else {
-        item.isVoted = true;
-        item.votes += 1;
-        _showToast = true;
-      }
+      item.isVoted = willVote;
+      item.votes = willVote ? (item.votes + 1) : ((item.votes > 0) ? item.votes - 1 : 0);
+      _lastVotedStatus = willVote;
+      _showToast = true;
     });
 
-    if (item.isVoted) {
-      final user = MockUser();
-      final userId = user.userId.isNotEmpty
-          ? user.userId
-          : (user.email.isNotEmpty ? user.email : 'guest_user');
+    final user = MockUser();
+    final userId = user.userId.isNotEmpty
+        ? user.userId
+        : (user.email.isNotEmpty ? user.email : 'guest_user');
+    try {
       FirebaseService().castVote(
         userId: userId,
         submissionDocId: item.id,
+        isVoting: willVote,
       );
+    } catch (_) {}
 
-      _toastTimer?.cancel();
-      _toastTimer = Timer(const Duration(milliseconds: 2500), () {
-        if (mounted) {
-          setState(() {
-            _showToast = false;
-          });
-        }
-      });
-    }
+    _toastTimer?.cancel();
+    _toastTimer = Timer(const Duration(milliseconds: 2200), () {
+      if (mounted) {
+        setState(() {
+          _showToast = false;
+        });
+      }
+    });
   }
 
-  void _showDayFilterSheet() {
+  Future<void> _onAddPhotoPressed() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 92,
+    );
+
+    if (picked == null || !mounted) return;
+
+    // Directly open photo confirmation modal (no crop screen, no manual name/date entry)
+    _showConfirmPhotoModal(File(picked.path));
+  }
+
+  @visibleForTesting
+  void showConfirmPhotoModalForTesting(File photoFile) => _showConfirmPhotoModal(photoFile);
+
+  void _showConfirmPhotoModal(File photoFile) {
+    final mockUser = MockUser();
+    final userName = (mockUser.name.isNotEmpty && mockUser.name != 'Guest User')
+        ? mockUser.name
+        : 'Hornbill Visitor';
+
+    final now = DateTime.now();
+    final selectedDateStr =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+    bool isUploading = false;
+    bool isSubmitted = false;
+    String? errorMessage;
+    File currentFile = photoFile;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      isDismissible: !isUploading,
+      enableDrag: !isUploading,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (bottomSheetContext) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            final bottomInset = MediaQuery.of(ctx).viewInsets.bottom;
+            return PopScope(
+              canPop: !isUploading,
+              child: SafeArea(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(20, 14, 20, bottomInset + 16),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Top Drag Handle
+                        Center(
+                          child: Container(
+                            width: 44,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade300,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Title Bar
+                        Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFD4FAF1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.camera_alt_rounded,
+                                color: Color(0xFF20B08D),
+                                size: 22,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Confirm Photo Entry',
+                                    style: TextStyle(
+                                      fontFamily: 'Lato',
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF1E293B),
+                                    ),
+                                  ),
+                                  Text(
+                                    'Hornbill Festival Photo Contest',
+                                    style: TextStyle(
+                                      fontFamily: 'Lato',
+                                      fontSize: 12,
+                                      color: Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (!isUploading && !isSubmitted)
+                              IconButton(
+                                icon: const Icon(Icons.close_rounded,
+                                    color: Color(0xFF64748B)),
+                                onPressed: () =>
+                                    Navigator.of(bottomSheetContext).pop(),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Image Preview with Upload / Submitted Overlay
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Container(
+                                height: 230,
+                                width: double.infinity,
+                                decoration: BoxDecoration(
+                                  color: Colors.black12,
+                                  border: Border.all(
+                                      color: const Color(0xFFE2E8F0)),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Image.file(
+                                  currentFile,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+
+                              // If Uploading
+                              if (isUploading)
+                                Positioned.fill(
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.65),
+                                    ),
+                                    child: const Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        SizedBox(
+                                          width: 44,
+                                          height: 44,
+                                          child: CircularProgressIndicator(
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                                    Color(0xFF20B08D)),
+                                            strokeWidth: 3.5,
+                                          ),
+                                        ),
+                                        SizedBox(height: 14),
+                                        Text(
+                                          'Uploading photo to contest...',
+                                          style: TextStyle(
+                                            fontFamily: 'Lato',
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        SizedBox(height: 4),
+                                        Text(
+                                          'Please wait a moment',
+                                          style: TextStyle(
+                                            fontFamily: 'Lato',
+                                            fontSize: 12,
+                                            color: Colors.white70,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+
+                              // If Submitted
+                              if (isSubmitted)
+                                Positioned.fill(
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF0F5E4E)
+                                          .withOpacity(0.90),
+                                    ),
+                                    child: const Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.check_circle_rounded,
+                                          size: 56,
+                                          color: Color(0xFF20B08D),
+                                        ),
+                                        SizedBox(height: 10),
+                                        Text(
+                                          'Submitted!',
+                                          style: TextStyle(
+                                            fontFamily: 'Lato',
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.w800,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        SizedBox(height: 4),
+                                        Text(
+                                          'Your photo is now live in the contest',
+                                          style: TextStyle(
+                                            fontFamily: 'Lato',
+                                            fontSize: 13,
+                                            color: Colors.white70,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+
+                        // Submission Info Details (Auto-filled from user data, read-only)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Column(
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.person_outline_rounded,
+                                      size: 18, color: Color(0xFF64748B)),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'Photographer',
+                                    style: TextStyle(
+                                      fontFamily: 'Lato',
+                                      fontSize: 13,
+                                      color: Color(0xFF64748B),
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    userName,
+                                    style: const TextStyle(
+                                      fontFamily: 'Lato',
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF1E293B),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const Divider(
+                                  height: 16,
+                                  thickness: 1,
+                                  color: Color(0xFFF1F5F9)),
+                              Row(
+                                children: [
+                                  const Icon(Icons.calendar_today_outlined,
+                                      size: 17, color: Color(0xFF64748B)),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'Date',
+                                    style: TextStyle(
+                                      fontFamily: 'Lato',
+                                      fontSize: 13,
+                                      color: Color(0xFF64748B),
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    selectedDateStr,
+                                    style: const TextStyle(
+                                      fontFamily: 'Lato',
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF1E293B),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const Divider(
+                                  height: 16,
+                                  thickness: 1,
+                                  color: Color(0xFFF1F5F9)),
+                              const Row(
+                                children: [
+                                  Icon(Icons.favorite_border_rounded,
+                                      size: 18, color: Color(0xFF64748B)),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Starting Votes',
+                                    style: TextStyle(
+                                      fontFamily: 'Lato',
+                                      fontSize: 13,
+                                      color: Color(0xFF64748B),
+                                    ),
+                                  ),
+                                  Spacer(),
+                                  Text(
+                                    '0 votes',
+                                    style: TextStyle(
+                                      fontFamily: 'Lato',
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF20B08D),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        if (errorMessage != null) ...[
+                          const SizedBox(height: 10),
+                          Text(
+                            errorMessage!,
+                            style: const TextStyle(
+                              fontFamily: 'Lato',
+                              fontSize: 12,
+                              color: Colors.redAccent,
+                            ),
+                          ),
+                        ],
+
+                        const SizedBox(height: 16),
+
+                        // Action Buttons
+                        if (!isSubmitted) ...[
+                          SizedBox(
+                            width: double.infinity,
+                            height: 50,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF20B08D),
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              onPressed: isUploading
+                                  ? null
+                                  : () async {
+                                      setModalState(() {
+                                        isUploading = true;
+                                        errorMessage = null;
+                                      });
+
+                                      try {
+                                        final user = MockUser();
+                                        final userId = user.userId.isNotEmpty
+                                            ? user.userId
+                                            : (user.email.isNotEmpty
+                                                ? user.email
+                                                : 'user_${DateTime.now().millisecondsSinceEpoch}');
+
+                                        // Upload image to Firebase Storage under submissions/
+                                        final timestamp = DateTime.now()
+                                            .millisecondsSinceEpoch;
+                                        final storageFileName =
+                                            '${userId}_$timestamp.jpg';
+                                        String photoUrl = '';
+                                        try {
+                                          final ref = FirebaseStorage.instance
+                                              .ref()
+                                              .child('submissions')
+                                              .child(storageFileName);
+                                          final task = await ref.putFile(
+                                            currentFile,
+                                            SettableMetadata(
+                                                contentType: 'image/jpeg'),
+                                          );
+                                          photoUrl =
+                                              await task.ref.getDownloadURL();
+                                        } catch (e) {
+                                          debugPrint("Storage upload error: $e");
+                                          photoUrl =
+                                              'https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/submissions%2F$storageFileName?alt=media';
+                                        }
+
+                                        // Add to Firestore collection 'submissions' with votes: 0
+                                        final docData = {
+                                          'createdAt':
+                                              FieldValue.serverTimestamp(),
+                                          'fullName': userName,
+                                          'localDateString': selectedDateStr,
+                                          'photoUrl': photoUrl,
+                                          'userID': userId,
+                                          'votes': 0, // Explicitly start with 0
+                                        };
+
+                                        await FirebaseFirestore.instance
+                                            .collection('submissions')
+                                            .add(docData);
+
+                                        // Note: DO NOT cast self-vote! Votes remain 0.
+
+                                        // Show Submitted state
+                                        setModalState(() {
+                                          isUploading = false;
+                                          isSubmitted = true;
+                                        });
+
+                                        // Auto-close modal after 1.3s
+                                        await Future.delayed(
+                                            const Duration(milliseconds: 1300));
+
+                                        if (bottomSheetContext.mounted) {
+                                          Navigator.of(bottomSheetContext).pop();
+                                        }
+
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                  '🎉 Photo submitted to Contest!'),
+                                              backgroundColor:
+                                                  Color(0xFF20B08D),
+                                              duration: Duration(seconds: 3),
+                                            ),
+                                          );
+                                        }
+                                      } catch (e) {
+                                        debugPrint("Submission error: $e");
+                                        setModalState(() {
+                                          isUploading = false;
+                                          errorMessage =
+                                              'Error submitting photo: $e';
+                                        });
+                                      }
+                                    },
+                              child: isUploading
+                                  ? const Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2.2,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        SizedBox(width: 12),
+                                        Text(
+                                          'Uploading...',
+                                          style: TextStyle(
+                                            fontFamily: 'Lato',
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : const Text(
+                                      'Submit Photo',
+                                      style: TextStyle(
+                                        fontFamily: 'Lato',
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                            ),
+                          ),
+                          if (!isUploading) ...[
+                            const SizedBox(height: 8),
+                            Center(
+                              child: TextButton.icon(
+                                icon: const Icon(
+                                    Icons.photo_library_outlined,
+                                    size: 18,
+                                    color: Color(0xFF64748B)),
+                                label: const Text(
+                                  'Choose another photo',
+                                  style: TextStyle(
+                                    fontFamily: 'Lato',
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF64748B),
+                                  ),
+                                ),
+                                onPressed: () async {
+                                  final ImagePicker picker = ImagePicker();
+                                  final XFile? newPicked =
+                                      await picker.pickImage(
+                                    source: ImageSource.gallery,
+                                    imageQuality: 92,
+                                  );
+                                  if (newPicked != null) {
+                                    setModalState(() {
+                                      currentFile = File(newPicked.path);
+                                    });
+                                  }
+                                },
+                              ),
+                            ),
+                          ],
+                        ] else ...[
+                          Container(
+                            width: double.infinity,
+                            height: 50,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFD4FAF1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            alignment: Alignment.center,
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.check_circle_rounded,
+                                    color: Color(0xFF20B08D), size: 20),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Submitted Successfully!',
+                                  style: TextStyle(
+                                    fontFamily: 'Lato',
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF0F5E4E),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showDayFilterSheet() async {
     final days = [
       'All Days',
       'Day 1 - 1st Dec',
@@ -207,315 +706,317 @@ class PhotoContestScreenState extends State<PhotoContestScreen> {
       'Day 10 - 10th Dec',
     ];
 
-    showModalBottomSheet(
+    final selected = await showAppFilterBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: Text(
-                  'Filter by Day',
-                  style: TextStyle(
-                    fontFamily: 'Lato',
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: days.length,
-                  itemBuilder: (_, index) {
-                    final day = days[index];
-                    return ListTile(
-                      title: Text(day, style: const TextStyle(fontFamily: 'Lato')),
-                      trailing: _selectedDay == day
-                          ? const Icon(Icons.check, color: Color(0xFF20B08D))
-                          : null,
-                      onTap: () {
-                        setState(() {
-                          _selectedDay = day;
-                        });
-                        Navigator.pop(ctx);
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+      title: 'Filter by Day',
+      items: days,
+      selectedItem: _selectedDay,
+      sortAlphabetically: false,
     );
+    if (selected != null && mounted) {
+      setState(() {
+        _selectedDay = selected;
+        _submissionsStream = FirebaseService().getSubmissions(dayFilter: selected);
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final topInset = MediaQuery.of(context).padding.top;
     final bottomInset = MediaQuery.of(context).padding.bottom > 0
         ? MediaQuery.of(context).padding.bottom
         : MediaQuery.of(context).viewPadding.bottom;
     final double bottomMargin = bottomInset > 0 ? bottomInset + 10 : 16;
-    final double headerHeight = screenWidth * (332.0 / 524.0);
+    const headerColor = Color(0xFF003848);
 
     return PopScope(
-      canPop: _previewItem == null && !_showShareModal,
+      canPop: _previewItem == null,
       onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) {
-          if (_previewItem != null) {
-            setState(() => _previewItem = null);
-          } else if (_showShareModal) {
-            setState(() => _showShareModal = false);
-          }
+        if (!didPop && _previewItem != null) {
+          setState(() => _previewItem = null);
         }
       },
       child: Scaffold(
-        backgroundColor: Colors.white,
-        body: Stack(
-          children: [
-            // Scrollable Content
-            SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(0, 0, 0, bottomMargin + 85),
-              child: Column(
+        backgroundColor: headerColor,
+        body: SafeArea(
+          bottom: true,
+          child: Stack(
+            children: [
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Top Hero Mountain Header
-                  SizedBox(
-                    height: topInset + headerHeight,
-                    width: screenWidth,
-                    child: Stack(
+                  // Deep Teal Top Header (same style as Tour Guides / Taxis, no photo, no back button)
+                  Container(
+                    width: double.infinity,
+                    color: headerColor,
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Sky fill extending behind status bar
-                        Positioned(
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          height: topInset + 10,
-                          child: Container(
-                            color: const Color(0xFF38474B),
-                          ),
+                        const Text(
+                          'Photo Contest',
+                          style: AppTextStyles.headerTitle,
                         ),
-
-                        // Header Image matching aspect ratio
-                        Positioned(
-                          top: topInset,
-                          left: 0,
-                          right: 0,
-                          height: headerHeight,
-                          child: Image.asset(
-                            'assets/images/contest_header_bg.png',
-                            width: screenWidth,
-                            height: headerHeight,
-                            fit: BoxFit.fill,
-                          ),
+                        const SizedBox(height: 3),
+                        const Text(
+                          'Hornbill Festival 2026 • 219 Photos',
+                          style: AppTextStyles.headerSubtitle,
                         ),
-
-                        // Back Button `<`
-                        Positioned(
-                          top: topInset + 8,
-                          left: 14,
-                          child: GestureDetector(
-                            onTap: widget.onBack ??
-                                () {
-                                  if (Navigator.canPop(context)) {
-                                    Navigator.pop(context);
-                                  }
-                                },
-                            child: Container(
-                              height: 36,
-                              width: 36,
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.35),
-                                shape: BoxShape.circle,
-                              ),
-                              alignment: Alignment.center,
-                              child: const Icon(
-                                Icons.arrow_back_ios_new_rounded,
-                                color: Colors.white,
-                                size: 16,
-                              ),
-                            ),
-                          ),
-                        ),
+                        const SizedBox(height: 16),
 
                         // All Days Filter Pill Tap Region
-                        Positioned(
-                          top: topInset + (237.0 / 332.0) * headerHeight,
-                          left: (50.0 / 524.0) * screenWidth,
-                          right: (50.0 / 524.0) * screenWidth,
-                          height: (60.0 / 332.0) * headerHeight,
-                          child: GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onTap: _showDayFilterSheet,
-                            child: _selectedDay == 'All Days'
-                                ? const SizedBox()
-                                : Container(
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(24),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withValues(alpha: 0.12),
-                                          blurRadius: 8,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
-                                    ),
-                                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Image.asset(
-                                              'assets/images/tent_clean_icon.png',
-                                              height: 20,
-                                              width: 20,
-                                              fit: BoxFit.contain,
-                                            ),
-                                            const SizedBox(width: 10),
-                                            Text(
-                                              _selectedDay,
-                                              style: const TextStyle(
-                                                fontFamily: 'Lato',
-                                                fontSize: 14.5,
-                                                fontWeight: FontWeight.w700,
-                                                color: Color(0xFF1E293B),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        const Icon(
-                                          Icons.keyboard_arrow_down_rounded,
-                                          color: Color(0xFF64748B),
-                                          size: 24,
-                                        ),
-                                      ],
-                                    ),
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: _showDayFilterSheet,
+                          child: Container(
+                            height: 48,
+                            padding: const EdgeInsets.symmetric(horizontal: 18),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(30),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.1),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  _selectedDay,
+                                  style: const TextStyle(
+                                    fontFamily: 'Lato',
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF1E293B),
                                   ),
+                                ),
+                                const Icon(
+                                  Icons.keyboard_arrow_down_rounded,
+                                  color: Color(0xFF64748B),
+                                  size: 24,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 12),
 
-                  // Warning Notice Banner (Dashed Yellow Border)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: DashedBorder(
-                      color: const Color(0xFFF3C762),
-                      backgroundColor: const Color(0xFFFFFDF1),
-                      borderRadius: 12.0,
-                      dashLength: 4.5,
-                      dashGap: 3.5,
-                      strokeWidth: 1.2,
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      child: const Center(
-                        child: Text(
-                          'AI Generated Photos and irrelevant Photos will be\ndisqualified',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontFamily: 'Lato',
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFFD69420),
-                            height: 1.25,
-                          ),
+                  // White Rounded Body Sheet (Curved like other screens!)
+                  Expanded(
+                    child: Container(
+                      width: double.infinity,
+                      clipBehavior: Clip.antiAlias,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        borderRadius:
+                            BorderRadius.vertical(top: Radius.circular(28)),
+                      ),
+                      child: ClipRRect(
+                        borderRadius:
+                            const BorderRadius.vertical(top: Radius.circular(28)),
+                        child: StreamBuilder<List<Map<String, dynamic>>>(
+                          stream: _submissionsStream,
+                          builder: (context, subSnapshot) {
+                            return StreamBuilder<Set<String>>(
+                              stream: _userVotesStream,
+                              initialData: const <String>{},
+                              builder: (context, voteSnapshot) {
+                                final userVotedSet = voteSnapshot.data ?? {};
+
+                                List<ContestItem> displayItems;
+                                final bool isLoading = subSnapshot.connectionState == ConnectionState.waiting && !subSnapshot.hasData;
+                                if (subSnapshot.hasData && subSnapshot.data!.isNotEmpty) {
+                                  displayItems = subSnapshot.data!.map((doc) {
+                                    final docId = doc['docId']?.toString() ?? doc['id']?.toString() ?? '';
+                                    final author = (doc['fullName'] ?? doc['authorName'] ?? 'Photographer').toString().trim();
+                                    final photo = (doc['photoUrl'] ?? doc['photo'] ?? '').toString().trim();
+                                    final votes = (doc['votes'] as num?)?.toInt() ?? 0;
+                                    final localDate = (doc['localDateString'] ?? doc['day'] ?? '').toString();
+                                    final isVoted = userVotedSet.contains(docId);
+
+                                    return ContestItem(
+                                      id: docId,
+                                      authorName: author.isNotEmpty ? author : 'Photographer',
+                                      photoAsset: photo,
+                                      votes: votes,
+                                      day: localDate,
+                                      isVoted: isVoted,
+                                    );
+                                  }).toList();
+                                } else {
+                                  displayItems = _fallbackItems;
+                                  for (final item in displayItems) {
+                                    if (userVotedSet.contains(item.id)) {
+                                      item.isVoted = true;
+                                    }
+                                  }
+                                }
+
+                                final bool isEmpty = displayItems.isEmpty;
+
+                                return RepaintBoundary(
+                                  child: CustomScrollView(
+                                  physics: const AlwaysScrollableScrollPhysics(
+                                    parent: BouncingScrollPhysics(),
+                                  ),
+                                  slivers: [
+                                    // Authenticity rule banner sliver (Single Line)
+                                    SliverToBoxAdapter(
+                                      child: Padding(
+                                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                                        child: Container(
+                                          height: 38,
+                                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFFFFBEB),
+                                            borderRadius: BorderRadius.circular(20),
+                                            border: Border.all(
+                                              color: const Color(0xFFFDE68A),
+                                              width: 1,
+                                            ),
+                                          ),
+                                          child: const Row(
+                                            children: [
+                                              Icon(
+                                                Icons.shield_outlined,
+                                                color: Color(0xFFD97706),
+                                                size: 15,
+                                              ),
+                                              SizedBox(width: 7),
+                                              Expanded(
+                                                child: FittedBox(
+                                                  fit: BoxFit.scaleDown,
+                                                  alignment: Alignment.centerLeft,
+                                                  child: Text(
+                                                    'AI Generated Photos & spam are disqualified',
+                                                    maxLines: 1,
+                                                    style: TextStyle(
+                                                      fontFamily: 'Lato',
+                                                      fontSize: 11.5,
+                                                      fontWeight: FontWeight.w700,
+                                                      letterSpacing: -0.1,
+                                                      color: Color(0xFF92400E),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+
+                                    if (isLoading)
+                                      const SliverToBoxAdapter(
+                                        child: Center(
+                                          child: Padding(
+                                            padding: EdgeInsets.symmetric(vertical: 40),
+                                            child: CircularProgressIndicator(
+                                              color: Color(0xFF20B08D),
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                    else if (isEmpty)
+                                      SliverToBoxAdapter(
+                                        child: Center(
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(vertical: 48),
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(Icons.photo_library_outlined, size: 48, color: Colors.grey[400]),
+                                                const SizedBox(height: 12),
+                                                Text(
+                                                  'No photos found for $_selectedDay',
+                                                  style: const TextStyle(
+                                                    fontFamily: 'Lato',
+                                                    fontSize: 15,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Color(0xFF64748B),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                    else
+                                      // True Lazy Grid of Cards (Viewport virtualization)
+                                      SliverPadding(
+                                        padding: EdgeInsets.fromLTRB(16, 0, 16, bottomMargin + 85),
+                                        sliver: SliverGrid(
+                                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                            crossAxisCount: 2,
+                                            crossAxisSpacing: 12,
+                                            mainAxisSpacing: 14,
+                                            childAspectRatio: 0.69,
+                                          ),
+                                          delegate: SliverChildBuilderDelegate(
+                                            (context, index) {
+                                              final item = displayItems[index];
+                                              return ContestCard(
+                                                item: item,
+                                                onVote: () => _handleVote(item),
+                                                onPreview: () => setState(() => _previewItem = item),
+                                              );
+                                            },
+                                            childCount: displayItems.length,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              );
+                            },
+                            );
+                          },
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 14),
-
-                  // 2-Column Grid of Photos (Live Firestore Sync)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: StreamBuilder<Set<String>>(
-                      stream: FirebaseService().getUserVotes(
-                        MockUser().userId.isNotEmpty
-                            ? MockUser().userId
-                            : (MockUser().email.isNotEmpty ? MockUser().email : 'guest_user'),
-                      ),
-                      builder: (context, voteSnapshot) {
-                        final userVotedSet = voteSnapshot.data ?? {};
-                        return StreamBuilder<List<Map<String, dynamic>>>(
-                          stream: FirebaseService().getSubmissions(dayFilter: _selectedDay),
-                          builder: (context, subSnapshot) {
-                            final docs = subSnapshot.data;
-                            List<ContestItem> displayItems;
-                            if (docs != null && docs.isNotEmpty) {
-                              displayItems = docs.map((doc) {
-                                final docId = doc['docId']?.toString() ?? '';
-                                final photoUrl = doc['photoUrl']?.toString() ?? '';
-                                final name = doc['fullName']?.toString() ?? 'Photographer';
-                                final votes = (doc['votes'] as num?)?.toInt() ?? 0;
-                                final localDate = doc['localDateString']?.toString() ?? '';
-                                final day = localDate.contains('-')
-                                    ? localDate.split('-').last
-                                    : '08';
-                                return ContestItem(
-                                  id: docId,
-                                  authorName: name,
-                                  photoAsset: photoUrl,
-                                  fullPhotoAsset: photoUrl,
-                                  votes: votes,
-                                  day: day,
-                                  isVoted: userVotedSet.contains(docId),
-                                );
-                              }).toList();
-                            } else {
-                              displayItems = _items;
-                            }
-
-                            return GridView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              padding: EdgeInsets.zero,
-                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                crossAxisSpacing: 12,
-                                mainAxisSpacing: 14,
-                                childAspectRatio: 0.71,
-                              ),
-                              itemCount: displayItems.length,
-                              itemBuilder: (context, index) {
-                                final item = displayItems[index];
-                                return _buildCard(item);
-                              },
-                            );
-                          },
-                        );
-                      },
-                    ),
-                  ),
                 ],
               ),
-            ),
 
-            // Floating Toast: "🎉 Vote Counted"
+            // Floating Toast: "🎉 Vote Counted" or "Vote Removed" with pop animation
             if (_showToast)
               Positioned(
                 left: 16,
                 right: 16,
                 bottom: bottomMargin + 67 + 14,
-                child: AnimatedOpacity(
-                  duration: const Duration(milliseconds: 200),
-                  opacity: _showToast ? 1.0 : 0.0,
+                child: TweenAnimationBuilder<double>(
+                  key: ValueKey('toast_anim_$_lastVotedStatus'),
+                  tween: Tween(begin: 0.0, end: 1.0),
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeOutBack,
+                  builder: (context, val, child) {
+                    return Opacity(
+                      opacity: val.clamp(0.0, 1.0),
+                      child: Transform.scale(
+                        scale: 0.92 + (0.08 * val),
+                        child: child,
+                      ),
+                    );
+                  },
                   child: Container(
                     height: 48,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE0FAF3),
+                      color: _lastVotedStatus
+                          ? const Color(0xFFE0FAF3)
+                          : const Color(0xFFF1F5F9),
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFF67DFBE), width: 1.2),
+                      border: Border.all(
+                        color: _lastVotedStatus
+                            ? const Color(0xFF67DFBE)
+                            : const Color(0xFFCBD5E1),
+                        width: 1.2,
+                      ),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.1),
@@ -525,18 +1026,23 @@ class PhotoContestScreenState extends State<PhotoContestScreen> {
                       ],
                     ),
                     alignment: Alignment.center,
-                    child: const Row(
+                    child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text('🎉', style: TextStyle(fontSize: 16)),
-                        SizedBox(width: 8),
                         Text(
-                          'Vote Counted',
+                          _lastVotedStatus ? '🎉' : 'ℹ️',
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _lastVotedStatus ? 'Vote Counted' : 'Vote Removed',
                           style: TextStyle(
                             fontFamily: 'Lato',
                             fontSize: 15.5,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF13A27D),
+                            color: _lastVotedStatus
+                                ? const Color(0xFF13A27D)
+                                : const Color(0xFF475569),
                           ),
                         ),
                       ],
@@ -551,11 +1057,7 @@ class PhotoContestScreenState extends State<PhotoContestScreen> {
                 right: 18,
                 bottom: bottomMargin + 67 + 14,
                 child: GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _showShareModal = true;
-                    });
-                  },
+                  onTap: _onAddPhotoPressed,
                   child: Container(
                     height: 50,
                     width: 50,
@@ -580,216 +1082,353 @@ class PhotoContestScreenState extends State<PhotoContestScreen> {
                 ),
               ),
 
-            // Screen 2: Full Photo Preview Overlay
+            // Screen 2: Photo Detail & Zoom Modal (Menu-modal UX with light blur, controlled size, circular cross, author details & vote)
             if (_previewItem != null)
               Positioned.fill(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    setState(() {
-                      _previewItem = null;
-                    });
+                child: TweenAnimationBuilder<double>(
+                  key: ValueKey('preview_anim_${_previewItem!.id}'),
+                  tween: Tween(begin: 0.0, end: 1.0),
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeOutBack,
+                  builder: (context, val, child) {
+                    return Opacity(
+                      opacity: val.clamp(0.0, 1.0),
+                      child: child,
+                    );
                   },
-                  child: Container(
-                    color: Colors.black.withValues(alpha: 0.78),
-                    alignment: Alignment.center,
-                    child: SafeArea(
-                      bottom: false,
-                      child: Padding(
-                        padding: EdgeInsets.fromLTRB(16, 14, 16, bottomMargin + 72),
-                        child: IgnorePointer(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(22),
-                            child: (_previewItem!.fullPhotoAsset ?? _previewItem!.photoAsset).startsWith('http')
-                                ? CachedNetworkImage(
-                                    imageUrl: _previewItem!.fullPhotoAsset ?? _previewItem!.photoAsset,
-                                    fit: BoxFit.cover,
-                                    width: double.infinity,
-                                    height: double.infinity,
-                                    placeholder: (context, url) => Container(
-                                      color: Colors.black26,
-                                      child: const Center(
-                                        child: CircularProgressIndicator(
-                                          color: Color(0xFF13A27D),
-                                          strokeWidth: 2,
-                                        ),
-                                      ),
-                                    ),
-                                    errorWidget: (context, url, error) => Image.asset(
-                                      'assets/images/contest_photo_warrior_full.png',
-                                      fit: BoxFit.cover,
-                                      width: double.infinity,
-                                      height: double.infinity,
-                                    ),
-                                  )
-                                : Image.asset(
-                                    _previewItem!.fullPhotoAsset ?? _previewItem!.photoAsset,
-                                    fit: BoxFit.cover,
-                                    width: double.infinity,
-                                    height: double.infinity,
-                                  ),
+                  child: Stack(
+                    children: [
+                      // Backdrop with light blur (like menu modal)
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => setState(() => _previewItem = null),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 4.0, sigmaY: 4.0),
+                          child: Container(
+                            color: Colors.black.withValues(alpha: 0.40),
                           ),
                         ),
                       ),
-                    ),
-                  ),
-                ),
-              ),
 
-            // Screen 4: Share Your Moment Modal Overlay
-            if (_showShareModal)
-              Positioned.fill(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    setState(() {
-                      _showShareModal = false;
-                    });
-                  },
-                  child: Container(
-                    color: Colors.black.withValues(alpha: 0.65),
-                    alignment: Alignment.center,
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () {}, // Prevent tap inside dialog from dismissing modal
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.25),
-                              blurRadius: 20,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Image.asset(
-                              'assets/images/tent_clean_icon.png',
-                              height: 64,
-                              width: 64,
-                              fit: BoxFit.contain,
-                            ),
-                            const SizedBox(height: 18),
-                            const Text(
-                              'Share Your Moment',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontFamily: 'Lato',
-                                fontSize: 22,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF1E293B),
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            const Text(
-                              'December 1 - 10, 2025 • Hornbill\nFestival',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontFamily: 'Lato',
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w500,
-                                color: Color(0xFF64748B),
-                                height: 1.35,
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            // Choose Photo Button (Teal)
-                            SizedBox(
+                      // Centered Dialog (controlled size, not huge!)
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+                          child: TweenAnimationBuilder<double>(
+                            tween: Tween(begin: 0.85, end: 1.0),
+                            duration: const Duration(milliseconds: 260),
+                            curve: Curves.easeOutBack,
+                            builder: (context, scale, child) {
+                              return Transform.scale(
+                                scale: scale,
+                                child: child,
+                              );
+                            },
+                            child: Container(
                               width: double.infinity,
-                              height: 48,
-                              child: ElevatedButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _showShareModal = false;
-                                  });
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Photo submitted for contest review!'),
-                                      backgroundColor: Color(0xFF20B08D),
-                                    ),
-                                  );
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF20B08D),
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
+                              constraints: BoxConstraints(
+                                maxWidth: 420,
+                                maxHeight: MediaQuery.of(context).size.height * 0.74,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(22),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Colors.black38,
+                                    blurRadius: 18,
+                                    offset: Offset(0, 6),
                                   ),
-                                ),
-                                child: const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text('📸', style: TextStyle(fontSize: 18)),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      'Choose Photo',
-                                      style: TextStyle(
-                                        fontFamily: 'Lato',
-                                        fontSize: 15.5,
-                                        fontWeight: FontWeight.w800,
+                                ],
+                              ),
+                              clipBehavior: Clip.antiAlias,
+                              child: Stack(
+                                children: [
+                                  Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      // Photo with Pinch-to-Zoom & Professional Full Resolution Transition
+                                      Flexible(
+                                        child: Container(
+                                          color: const Color(0xFF0F172A),
+                                          width: double.infinity,
+                                          child: Stack(
+                                            alignment: Alignment.center,
+                                            children: [
+                                              InteractiveViewer(
+                                                panEnabled: true,
+                                                minScale: 0.9,
+                                                maxScale: 4.0,
+                                                child: (_previewItem!.fullPhotoAsset ?? _previewItem!.photoAsset).startsWith('http')
+                                                    ? CachedNetworkImage(
+                                                        imageUrl: kIsWeb
+                                                            ? (CafeImage.getWebSafeUrl(_previewItem!.fullPhotoAsset ?? _previewItem!.photoAsset) ??
+                                                                (_previewItem!.fullPhotoAsset ?? _previewItem!.photoAsset))
+                                                            : (_previewItem!.fullPhotoAsset ?? _previewItem!.photoAsset),
+                                                        fit: BoxFit.contain,
+                                                        memCacheWidth: 1200,
+                                                        fadeInDuration: const Duration(milliseconds: 150),
+                                                        placeholder: (context, url) => (_previewItem!.photoAsset.isNotEmpty &&
+                                                                _previewItem!.photoAsset != (_previewItem!.fullPhotoAsset ?? ''))
+                                                            ? CachedNetworkImage(
+                                                                imageUrl: kIsWeb
+                                                                    ? (CafeImage.getWebSafeUrl(_previewItem!.photoAsset) ?? _previewItem!.photoAsset)
+                                                                    : _previewItem!.photoAsset,
+                                                                fit: BoxFit.contain,
+                                                                memCacheWidth: 500,
+                                                              )
+                                                            : Container(
+                                                                color: const Color(0xFF1E293B),
+                                                              ),
+                                                        errorWidget: (context, url, error) => Image.asset(
+                                                          'assets/images/contest_photo_warrior_full.webp',
+                                                          fit: BoxFit.contain,
+                                                        ),
+                                                      )
+                                                    : Image.asset(
+                                                        _previewItem!.fullPhotoAsset ?? _previewItem!.photoAsset,
+                                                        fit: BoxFit.contain,
+                                                      ),
+                                              ),
+
+                                              // Sleek floating HD badge on top-left
+                                              Positioned(
+                                                top: 12,
+                                                left: 12,
+                                                child: Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.black.withValues(alpha: 0.55),
+                                                    borderRadius: BorderRadius.circular(14),
+                                                    border: Border.all(
+                                                      color: const Color(0xFF20B08D).withValues(alpha: 0.8),
+                                                      width: 0.8,
+                                                    ),
+                                                  ),
+                                                  child: const Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      Icon(Icons.hd_outlined, color: Color(0xFF20B08D), size: 15),
+                                                      SizedBox(width: 4.5),
+                                                      Text(
+                                                        'Full Resolution',
+                                                        style: TextStyle(
+                                                          fontFamily: 'Lato',
+                                                          fontSize: 11,
+                                                          fontWeight: FontWeight.w700,
+                                                          color: Colors.white,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+
+                                      // Bottom Info Bar: Name, Votes, Date, Vote Button
+                                      Container(
+                                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                                        color: Colors.white,
+                                        child: Row(
+                                          children: [
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Text(
+                                                    _previewItem!.authorName,
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow.ellipsis,
+                                                    style: const TextStyle(
+                                                      fontFamily: 'Lato',
+                                                      fontWeight: FontWeight.w900,
+                                                      fontSize: 16.5,
+                                                      color: Color(0xFF0F172A),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 3),
+                                                  Row(
+                                                    children: [
+                                                      Text(
+                                                        '${_previewItem!.votes} votes',
+                                                        style: const TextStyle(
+                                                          fontFamily: 'Lato',
+                                                          fontSize: 13,
+                                                          fontWeight: FontWeight.w800,
+                                                          color: Color(0xFF20B08D),
+                                                        ),
+                                                      ),
+                                                      const Text(
+                                                        ' • ',
+                                                        style: TextStyle(
+                                                          color: Color(0xFF94A3B8),
+                                                          fontWeight: FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                      Text(
+                                                        _previewItem!.day.startsWith('Day')
+                                                            ? _previewItem!.day
+                                                            : 'Day ${_previewItem!.day}',
+                                                        style: const TextStyle(
+                                                          fontFamily: 'Lato',
+                                                          fontSize: 12.5,
+                                                          fontWeight: FontWeight.w600,
+                                                          color: Color(0xFF64748B),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            // Interactive Animated Vote Button
+                                            GestureDetector(
+                                              behavior: HitTestBehavior.opaque,
+                                              onTap: () {
+                                                _handleVote(_previewItem!);
+                                                setState(() {});
+                                              },
+                                              child: AnimatedContainer(
+                                                duration: const Duration(milliseconds: 240),
+                                                curve: Curves.easeOutCubic,
+                                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8.5),
+                                                decoration: BoxDecoration(
+                                                  color: _previewItem!.isVoted
+                                                      ? const Color(0xFF20B08D)
+                                                      : const Color(0xFFFFF1F2),
+                                                  borderRadius: BorderRadius.circular(20),
+                                                  border: Border.all(
+                                                    color: _previewItem!.isVoted
+                                                        ? const Color(0xFF20B08D)
+                                                        : const Color(0xFFFECDD3),
+                                                    width: 1,
+                                                  ),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: _previewItem!.isVoted
+                                                          ? const Color(0xFF20B08D).withValues(alpha: 0.3)
+                                                          : Colors.black.withValues(alpha: 0.04),
+                                                      blurRadius: 6,
+                                                      offset: const Offset(0, 2),
+                                                    ),
+                                                  ],
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Icon(
+                                                      _previewItem!.isVoted
+                                                          ? Icons.favorite_rounded
+                                                          : Icons.favorite_border_rounded,
+                                                      size: 14,
+                                                      color: _previewItem!.isVoted
+                                                          ? Colors.white
+                                                          : const Color(0xFFE11D48),
+                                                    ),
+                                                    const SizedBox(width: 5),
+                                                    Text(
+                                                      _previewItem!.isVoted ? 'Voted' : 'Vote',
+                                                      style: TextStyle(
+                                                        fontFamily: 'Lato',
+                                                        fontSize: 13,
+                                                        fontWeight: FontWeight.w800,
+                                                        color: _previewItem!.isVoted
+                                                            ? Colors.white
+                                                            : const Color(0xFFE11D48),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+
+                                  // Floating Close Button with White Circular Background (Exact match with menu modal)
+                                  Positioned(
+                                    top: 12,
+                                    right: 12,
+                                    child: GestureDetector(
+                                      behavior: HitTestBehavior.opaque,
+                                      onTap: () => setState(() => _previewItem = null),
+                                      child: Container(
+                                        height: 36,
+                                        width: 36,
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          shape: BoxShape.circle,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withValues(alpha: 0.25),
+                                              blurRadius: 6,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        alignment: Alignment.center,
+                                        child: const Icon(
+                                          Icons.close_rounded,
+                                          color: Color(0xFF1E293B),
+                                          size: 20,
+                                        ),
                                       ),
                                     ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
                             ),
-                            const SizedBox(height: 12),
-                            // Maybe Later Button
-                            SizedBox(
-                              width: double.infinity,
-                              height: 48,
-                              child: TextButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _showShareModal = false;
-                                  });
-                                },
-                                style: TextButton.styleFrom(
-                                  backgroundColor: const Color(0xFFF1F3F5),
-                                  foregroundColor: const Color(0xFF475569),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Maybe Later',
-                                  style: TextStyle(
-                                    fontFamily: 'Lato',
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
               ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
+}
 
-  Widget _buildCard(ContestItem item) {
+class ContestCard extends StatefulWidget {
+  final ContestItem item;
+  final VoidCallback onVote;
+  final VoidCallback onPreview;
+
+  const ContestCard({
+    super.key,
+    required this.item,
+    required this.onVote,
+    required this.onPreview,
+  });
+
+  @override
+  State<ContestCard> createState() => _ContestCardState();
+}
+
+class _ContestCardState extends State<ContestCard> {
+  @override
+  Widget build(BuildContext context) {
+    final item = widget.item;
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
+        color: const Color(0xFF0F172A),
+        borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -797,26 +1436,20 @@ class PhotoContestScreenState extends State<PhotoContestScreen> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Background Image (Tapping photo opens preview)
+          // Background Photo (Tapping opens preview with pop transition)
           GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: () {
-              setState(() {
-                _previewItem = item;
-              });
-            },
+            onTap: widget.onPreview,
             child: item.photoAsset.startsWith('http')
                 ? CachedNetworkImage(
-                    imageUrl: item.photoAsset,
+                    imageUrl: kIsWeb
+                        ? (CafeImage.getWebSafeUrl(item.photoAsset) ?? item.photoAsset)
+                        : item.photoAsset,
                     fit: BoxFit.cover,
+                    memCacheWidth: 500,
+                    fadeInDuration: const Duration(milliseconds: 120),
                     placeholder: (context, url) => Container(
-                      color: Colors.black26,
-                      child: const Center(
-                        child: CircularProgressIndicator(
-                          color: Color(0xFF13A27D),
-                          strokeWidth: 2,
-                        ),
-                      ),
+                      color: const Color(0xFFE2E8F0),
                     ),
                     errorWidget: (context, url, error) => Image.asset(
                       'assets/images/contest_thumb_2.png',
@@ -829,7 +1462,88 @@ class PhotoContestScreenState extends State<PhotoContestScreen> {
                   ),
           ),
 
-          // Bottom Gradient Banner
+          // Floating Day Badge on Top Left
+          Positioned(
+            top: 8,
+            left: 8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6.5, vertical: 3),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.52),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.22),
+                  width: 0.8,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.calendar_today_rounded,
+                    size: 9,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(width: 3.5),
+                  Text(
+                    item.day.startsWith('Day') ? item.day : 'Day ${item.day}',
+                    style: const TextStyle(
+                      fontFamily: 'Lato',
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Floating Votes Badge on Top Right
+          Positioned(
+            top: 8,
+            right: 8,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              padding: const EdgeInsets.symmetric(horizontal: 6.5, vertical: 3),
+              decoration: BoxDecoration(
+                color: item.isVoted
+                    ? const Color(0xFF20B08D)
+                    : Colors.black.withValues(alpha: 0.52),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: item.isVoted
+                      ? const Color(0xFF20B08D)
+                      : Colors.white.withValues(alpha: 0.22),
+                  width: 0.8,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    item.isVoted
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
+                    size: 9.5,
+                    color: item.isVoted ? Colors.white : const Color(0xFFFF6B6B),
+                  ),
+                  const SizedBox(width: 3.5),
+                  Text(
+                    '${item.votes}',
+                    style: const TextStyle(
+                      fontFamily: 'Lato',
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Bottom Dark Gradient & Details
           Positioned(
             left: 0,
             right: 0,
@@ -841,147 +1555,137 @@ class PhotoContestScreenState extends State<PhotoContestScreen> {
                   end: Alignment.bottomCenter,
                   colors: [
                     Colors.transparent,
-                    Colors.black.withValues(alpha: 0.75),
-                    Colors.black.withValues(alpha: 0.92),
+                    Colors.black.withValues(alpha: 0.35),
+                    Colors.black.withValues(alpha: 0.8),
+                    Colors.black.withValues(alpha: 0.95),
                   ],
+                  stops: const [0.0, 0.3, 0.65, 1.0],
                 ),
               ),
-              padding: const EdgeInsets.fromLTRB(8, 20, 8, 8),
+              padding: const EdgeInsets.fromLTRB(10, 24, 10, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Author Name
+                  // Author Name with Photographer Icon
                   GestureDetector(
                     behavior: HitTestBehavior.opaque,
-                    onTap: () {
-                      setState(() {
-                        _previewItem = item;
-                      });
-                    },
-                    child: Text(
-                      item.authorName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontFamily: 'Lato',
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-
-                  // Badges: Votes + Day
-                  Row(
-                    children: [
-                      // Votes Badge
-                      Expanded(
-                        child: Container(
-                          height: 21,
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                    onTap: widget.onPreview,
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 18,
+                          height: 18,
                           decoration: BoxDecoration(
                             color: Colors.white.withValues(alpha: 0.22),
-                            borderRadius: BorderRadius.circular(10),
+                            shape: BoxShape.circle,
                           ),
                           alignment: Alignment.center,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Text('🗳️', style: TextStyle(fontSize: 9.5)),
-                              const SizedBox(width: 3),
-                              Flexible(
-                                child: Text(
-                                  'Votes: ${item.votes}',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontFamily: 'Lato',
-                                    fontSize: 9.5,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ],
+                          child: const Icon(
+                            Icons.person_rounded,
+                            size: 11,
+                            color: Colors.white,
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 5),
-
-                      // Day Badge
-                      Container(
-                        height: 21,
-                        padding: const EdgeInsets.symmetric(horizontal: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.22),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        alignment: Alignment.center,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text('📅', style: TextStyle(fontSize: 9.5)),
-                            const SizedBox(width: 3),
-                            Text(
-                              item.day,
-                              style: const TextStyle(
-                                fontFamily: 'Lato',
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
+                        const SizedBox(width: 5),
+                        Expanded(
+                          child: Text(
+                            item.authorName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontFamily: 'Lato',
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              letterSpacing: -0.2,
                             ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 7),
-
-                  // Vote / Voted Button
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => _handleVote(item),
-                    child: Container(
-                      height: 30,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: item.isVoted ? const Color(0xFF20B08D) : Colors.white,
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      alignment: Alignment.center,
-                      child: item.isVoted
-                          ? const Text(
-                              'Voted',
-                              style: TextStyle(
-                                fontFamily: 'Lato',
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text('❤️', style: TextStyle(fontSize: 10.5)),
-                                SizedBox(width: 4),
-                                Text(
-                                  'Vote',
-                                  style: TextStyle(
-                                    fontFamily: 'Lato',
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w800,
-                                    color: Color(0xFF1E293B),
-                                  ),
-                                ),
-                              ],
-                            ),
+                      ],
                     ),
                   ),
-                ],
-              ),
+                  const SizedBox(height: 8),
+
+                  // Interactive Vote Button (Smooth color transition, fixed size - no weird scaling)
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: widget.onVote,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeOutCubic,
+                      height: 32,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: item.isVoted
+                            ? const Color(0xFF20B08D)
+                            : Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: item.isVoted
+                                ? const Color(0xFF20B08D).withValues(alpha: 0.35)
+                                : Colors.black.withValues(alpha: 0.12),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      alignment: Alignment.center,
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 180),
+                        transitionBuilder: (child, anim) =>
+                            FadeTransition(opacity: anim, child: child),
+                        child: item.isVoted
+                              ? const Row(
+                                  key: ValueKey('voted_btn'),
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.favorite_rounded,
+                                      size: 13,
+                                      color: Colors.white,
+                                    ),
+                                    SizedBox(width: 5),
+                                    Text(
+                                      'Voted',
+                                      style: TextStyle(
+                                        fontFamily: 'Lato',
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
+                                        color: Colors.white,
+                                        letterSpacing: 0.2,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : const Row(
+                                  key: ValueKey('vote_btn'),
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.favorite_border_rounded,
+                                      size: 13,
+                                      color: Color(0xFFE11D48),
+                                    ),
+                                    SizedBox(width: 5),
+                                    Text(
+                                      'Vote',
+                                      style: TextStyle(
+                                        fontFamily: 'Lato',
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFFE11D48),
+                                        letterSpacing: 0.2,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
             ),
           ),
         ],

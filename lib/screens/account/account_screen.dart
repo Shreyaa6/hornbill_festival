@@ -2,91 +2,342 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../data/mock_user.dart';
+import '../../services/app_config_service.dart';
 import '../../widgets/dashed_border.dart';
 import '../auth/login_screen.dart';
+import '../common/app_webview_screen.dart';
 
 class AccountScreen extends StatelessWidget {
   const AccountScreen({super.key});
 
-  Future<void> _launchUrl(String url) async {
+  static const String shareContent =
+      'Download Hornbill Festival: Find Homestays / Hotels, Destinations, Cabs, Places to Eat, Tour Guides and much more \n\n https://play.google.com/store/apps/details?id=hornbill.festival.nagaland';
+
+  static const String privacyPolicyUrl =
+      'https://nititechnologies.in/privacy-policy';
+  static const String termsUrl =
+      'https://nititechnologies.in/terms';
+
+  Future<void> _openExternalUrl(String url) async {
     final uri = Uri.parse(url);
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      debugPrint('Could not launch $url');
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      debugPrint('Error launching URL $url: $e');
     }
   }
 
-  void _shareApp() {
-    SharePlus.instance.share(ShareParams(
-      text:
-          'Download Hornbill Festival: Find Homestays / Hotels, Destinations, Cabs, Places to Eat, Tour Guides and much more\n\nhttps://play.google.com/store/apps/details?id=hornbill.festival.nagaland',
-    ));
+  /// Bottom sheet popup for Logout confirmation (matching filter dropdown UX)
+  Future<void> _showLogoutBottomSheet(BuildContext context, MockUser mockUser) async {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 14, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Top drag handle
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Icon
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFD4FAF1),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(
+                    Icons.logout_rounded,
+                    size: 28,
+                    color: Color(0xFF20B08D),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Title
+                const Text(
+                  'Log Out of Hornbill Festival?',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: 'Lato',
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // Description
+                const Text(
+                  'Are you sure you want to log out? You can sign in anytime with your email to access your bookings and queries.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: 'Lato',
+                    fontSize: 14,
+                    height: 1.5,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Primary Log Out Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF20B08D),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () async {
+                      Navigator.of(ctx).pop();
+                      await mockUser.logout();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Logged out successfully'),
+                            backgroundColor: Color(0xFF20B08D),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      }
+                    },
+                    child: const Text(
+                      'Log Out',
+                      style: TextStyle(
+                        fontFamily: 'Lato',
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+
+                // Cancel Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: TextButton(
+                    style: TextButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(
+                        fontFamily: 'Lato',
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
-  void _rateOnPlaystore() {
-    _launchUrl('https://play.google.com/store/apps/details?id=hornbill.festival.nagaland');
+  /// Bottom sheet popup for permanent Account Deletion (matching filter dropdown UX)
+  Future<void> _showDeleteAccountBottomSheet(BuildContext context, MockUser mockUser) async {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 14, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Top drag handle
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Danger Icon
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFEBEB),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(
+                    Icons.delete_forever_rounded,
+                    size: 30,
+                    color: Color(0xFFE53935),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Title
+                const Text(
+                  'Delete Account Permanently?',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: 'Lato',
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFFE53935),
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // Description
+                const Text(
+                  'This action will permanently delete your account, personal profile, and associated records directly from our servers. This cannot be undone.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: 'Lato',
+                    fontSize: 14,
+                    height: 1.5,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Destructive Delete Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFE53935),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () async {
+                      Navigator.of(ctx).pop();
+                      await mockUser.deleteAccount();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Your account and profile data have been permanently deleted.'),
+                            backgroundColor: Color(0xFFE53935),
+                            duration: Duration(seconds: 3),
+                          ),
+                        );
+                      }
+                    },
+                    child: const Text(
+                      'Delete My Account',
+                      style: TextStyle(
+                        fontFamily: 'Lato',
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+
+                // Keep Account Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: TextButton(
+                    style: TextButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: const Text(
+                      'Keep My Account',
+                      style: TextStyle(
+                        fontFamily: 'Lato',
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _shareApp(BuildContext context) async {
+    try {
+      await SharePlus.instance.share(ShareParams(
+        text: shareContent,
+      ));
+    } catch (e) {
+      debugPrint('Share API error: $e');
+    }
+  }
+
+  Future<void> _rateOnPlaystore() async {
+    const playStoreWebUrl = 'https://play.google.com/store/apps/details?id=hornbill.festival.nagaland';
+    final marketUri = Uri.parse('market://details?id=hornbill.festival.nagaland');
+    final webUri = Uri.parse(playStoreWebUrl);
+
+    try {
+      if (await canLaunchUrl(marketUri)) {
+        await launchUrl(marketUri, mode: LaunchMode.externalApplication);
+        return;
+      }
+    } catch (_) {}
+
+    if (await canLaunchUrl(webUri)) {
+      await launchUrl(webUri, mode: LaunchMode.externalApplication);
+    }
   }
 
   void _openLogin(BuildContext context) {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const LoginScreen()),
-    );
-  }
-
-  void _confirmLogout(BuildContext context, MockUser mockUser) {
-    if (!mockUser.isLoggedIn) {
-      _openLogin(context);
-      return;
-    }
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Logout',
-          style: TextStyle(
-            fontFamily: 'Lato',
-            fontWeight: FontWeight.w800,
-            fontSize: 18,
-          ),
-        ),
-        content: const Text(
-          'Are you sure you want to log out of your account?',
-          style: TextStyle(
-            fontFamily: 'Lato',
-            fontSize: 14,
-            color: Color(0xFF475569),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(
-                fontFamily: 'Lato',
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF64748B),
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              mockUser.logout();
-            },
-            child: const Text(
-              'Logout',
-              style: TextStyle(
-                fontFamily: 'Lato',
-                fontWeight: FontWeight.w800,
-                color: Color(0xFFE53935),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -239,7 +490,7 @@ class AccountScreen extends StatelessWidget {
                           color: Color(0xFF20B08D),
                           size: 22,
                         ),
-                        onTap: _shareApp,
+                        onTap: () => _shareApp(context),
                       ),
 
                       const Divider(height: 1, thickness: 1, color: Color(0xFFF1F3F5)),
@@ -256,17 +507,90 @@ class AccountScreen extends StatelessWidget {
                         onTap: _rateOnPlaystore,
                       ),
 
-                      // If logged in, show Logout button
+                      const Divider(height: 1, thickness: 1, color: Color(0xFFF1F3F5)),
+
+                      // Privacy Policy
+                      _buildActionRow(
+                        label: 'Privacy Policy',
+                        iconWidget: const Icon(
+                          Icons.privacy_tip_outlined,
+                          color: Color(0xFF20B08D),
+                          size: 22,
+                        ),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => AppWebViewScreen(
+                                title: 'Privacy Policy',
+                                subtitle: 'Privacy & Data Protection',
+                                url: AppConfigService().privacyPolicyUrl,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+
+                      const Divider(height: 1, thickness: 1, color: Color(0xFFF1F3F5)),
+
+                      // Terms & Conditions
+                      _buildActionRow(
+                        label: 'Terms & Conditions',
+                        iconWidget: const Icon(
+                          Icons.description_outlined,
+                          color: Color(0xFF20B08D),
+                          size: 22,
+                        ),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => AppWebViewScreen(
+                                title: 'Terms & Conditions',
+                                subtitle: 'User Agreement & Policies',
+                                url: AppConfigService().termsUrl,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+
+                      const Divider(height: 1, thickness: 1, color: Color(0xFFF1F3F5)),
+
+                      // Logout
+                      _buildActionRow(
+                        label: 'Logout',
+                        iconWidget: const Icon(
+                          Icons.logout_rounded,
+                          color: Color(0xFF20B08D),
+                          size: 22,
+                        ),
+                        onTap: () {
+                          if (loggedIn) {
+                            _showLogoutBottomSheet(context, mockUser);
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('You are currently not logged in'),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                        },
+                      ),
+
+                      // Delete Account (Apple Store & Google Play requirement)
                       if (loggedIn) ...[
                         const Divider(height: 1, thickness: 1, color: Color(0xFFF1F3F5)),
                         _buildActionRow(
-                          label: 'Logout',
+                          label: 'Delete Account',
+                          isDestructive: true,
                           iconWidget: const Icon(
-                            Icons.logout_rounded,
-                            color: Color(0xFF20B08D),
+                            Icons.delete_forever_rounded,
+                            color: Color(0xFFE53935),
                             size: 22,
                           ),
-                          onTap: () => _confirmLogout(context, mockUser),
+                          onTap: () => _showDeleteAccountBottomSheet(context, mockUser),
                         ),
                       ],
                     ],
@@ -284,6 +608,7 @@ class AccountScreen extends StatelessWidget {
     required String label,
     required Widget iconWidget,
     required VoidCallback onTap,
+    bool isDestructive = false,
   }) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -292,12 +617,12 @@ class AccountScreen extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
         child: Row(
           children: [
-            // Light Mint Rounded Container for Icon
+            // Rounded Container for Icon
             Container(
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: const Color(0xFFD4FAF1),
+                color: isDestructive ? const Color(0xFFFFEBEB) : const Color(0xFFD4FAF1),
                 borderRadius: BorderRadius.circular(12),
               ),
               alignment: Alignment.center,
@@ -309,19 +634,19 @@ class AccountScreen extends StatelessWidget {
             Expanded(
               child: Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: 'Lato',
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF1E293B),
+                  color: isDestructive ? const Color(0xFFE53935) : const Color(0xFF1E293B),
                 ),
               ),
             ),
 
-            // Trailing Teal Chevron
-            const Icon(
+            // Trailing Chevron
+            Icon(
               Icons.chevron_right_rounded,
-              color: Color(0xFF20B08D),
+              color: isDestructive ? const Color(0xFFE53935) : const Color(0xFF20B08D),
               size: 26,
             ),
           ],

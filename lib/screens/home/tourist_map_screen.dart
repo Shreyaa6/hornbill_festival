@@ -1,37 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../widgets/custom_bottom_bar.dart';
-
-class TouristSpot {
-  final String id;
-  final String name;
-  final String district;
-  final String category;
-  final String subtitle;
-  final String image;
-  final double xRatio; // Relative X on map (0.0 - 1.0)
-  final double yRatio; // Relative Y on map (0.0 - 1.0)
-  final Color pinColor;
-  final double lat;
-  final double lng;
-  final String description;
-
-  const TouristSpot({
-    required this.id,
-    required this.name,
-    required this.district,
-    required this.category,
-    required this.subtitle,
-    required this.image,
-    required this.xRatio,
-    required this.yRatio,
-    required this.pinColor,
-    required this.lat,
-    required this.lng,
-    required this.description,
-  });
-}
+import 'package:share_plus/share_plus.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../data/nagaland_data.dart';
+import '../../data/tourist_map_destinations.dart';
+import '../../services/firebase_service.dart';
+import '../../theme/app_theme.dart';
 
 class TouristMapScreen extends StatefulWidget {
   const TouristMapScreen({super.key});
@@ -41,736 +17,671 @@ class TouristMapScreen extends StatefulWidget {
 }
 
 class _TouristMapScreenState extends State<TouristMapScreen> {
-  bool _isGoogleMode = false; // Live mode by default as in screenshots 3-7
-  bool _isSatMode = false;
-  final bool _showSetupBanner = true;
-  String _selectedCategory = 'All Places';
-  String _searchQuery = '';
-  TouristSpot? _selectedSpot;
-
-  final TextEditingController _searchController = TextEditingController();
+  final MapController _mapController = MapController();
   final ScrollController _cardsScrollController = ScrollController();
-  final TransformationController _mapTransformController =
-      TransformationController();
+  final TextEditingController _searchController = TextEditingController();
 
-  final List<String> _categories = [
-    'All Places',
-    'Heritage & History',
-    'Nature & Treks',
-    'Peaks',
-    'Culture & Villages',
-    'Viewpoints',
-  ];
-
-  final List<TouristSpot> _allSpots = const [
-    TouristSpot(
-      id: 'cemetery',
-      name: 'Kohima War Cemetery',
-      district: 'Kohima',
-      category: 'Heritage & History',
-      subtitle: 'Kohima • Heritage & History',
-      image: 'assets/images/tourist_map/thumb_cemetery.png',
-      xRatio: 0.35,
-      yRatio: 0.74,
-      pinColor: Color(0xFFE11D48),
-      lat: 25.6669,
-      lng: 94.1037,
-      description:
-          'Memorial dedicated to soldiers of the 2nd British Division who died in the battle of Kohima in 1944.',
-    ),
-    TouristSpot(
-      id: 'kachari',
-      name: 'Kachari Ruins',
-      district: 'Dimapur',
-      category: 'Heritage & History',
-      subtitle: 'Dimapur • Heritage & History',
-      image: 'assets/images/tourist_map/card_kachari.png',
-      xRatio: 0.16,
-      yRatio: 0.69,
-      pinColor: Color(0xFF8B5CF6),
-      lat: 25.9080,
-      lng: 93.7290,
-      description:
-          'Ancient medieval monolithic sandstone pillars constructed by the Dimasa Kachari Kingdom in the 10th century.',
-    ),
-    TouristSpot(
-      id: 'dzukou',
-      name: 'Dzukou Valley',
-      district: 'Kohima',
-      category: 'Nature & Treks',
-      subtitle: 'Kohima • Nature & Treks',
-      image: 'assets/images/tourist_map/thumb_dzukou.png',
-      xRatio: 0.32,
-      yRatio: 0.82,
-      pinColor: Color(0xFF0D9488),
-      lat: 25.5539,
-      lng: 94.0753,
-      description:
-          'Famous valley of flowers bordering Nagaland and Manipur, revered for scenic rolling bamboo hillocks and trekking.',
-    ),
-    TouristSpot(
-      id: 'saramati',
-      name: 'Mount Saramati',
-      district: 'Kiphire',
-      category: 'Peaks',
-      subtitle: 'Kiphire • Mountain Peaks',
-      image: 'assets/images/tourist_map/thumb_saramati.png',
-      xRatio: 0.82,
-      yRatio: 0.52,
-      pinColor: Color(0xFFF97316),
-      lat: 25.7424,
-      lng: 95.0312,
-      description:
-          'The highest mountain peak in Nagaland (3,841 m), rising above the surrounding mountains near Thanamir.',
-    ),
-    TouristSpot(
-      id: 'doyang',
-      name: 'Doyang Reservoir & Pangti',
-      district: 'Wokha',
-      category: 'Nature & Treks',
-      subtitle: 'Wokha • Nature & Treks',
-      image: 'assets/images/tourist_map/thumb_doyang.png',
-      xRatio: 0.44,
-      yRatio: 0.46,
-      pinColor: Color(0xFF4F46E5),
-      lat: 26.1524,
-      lng: 94.2794,
-      description:
-          'Massive scenic reservoir and world-famous stopover for hundreds of thousands of migratory Amur Falcons.',
-    ),
-    TouristSpot(
-      id: 'kisama',
-      name: 'Naga Heritage Village, Kisama',
-      district: 'Kohima',
-      category: 'Culture & Villages',
-      subtitle: 'Kohima • Culture & Festival',
-      image: 'assets/images/tourist_map/thumb_kisama.png',
-      xRatio: 0.38,
-      yRatio: 0.77,
-      pinColor: Color(0xFFD97706),
-      lat: 25.6186,
-      lng: 94.1167,
-      description:
-          'The official venue of the annual Hornbill Festival, featuring morungs of all recognized Naga tribes.',
-    ),
-    TouristSpot(
-      id: 'khonoma',
-      name: 'Khonoma Green Village',
-      district: 'Kohima',
-      category: 'Culture & Villages',
-      subtitle: 'Kohima • Eco Village',
-      image: 'assets/images/trip_nagaland.png',
-      xRatio: 0.30,
-      yRatio: 0.73,
-      pinColor: Color(0xFF059669),
-      lat: 25.6514,
-      lng: 94.0194,
-      description:
-          "Asia's first green village, known for community wildlife conservation, alder-based jhum farming, and brave warriors.",
-    ),
-    TouristSpot(
-      id: 'touphema',
-      name: 'Touphema Tourist Village',
-      district: 'Kohima',
-      category: 'Culture & Villages',
-      subtitle: 'Kohima • Cultural Village',
-      image: 'assets/images/morung_angami.png',
-      xRatio: 0.41,
-      yRatio: 0.62,
-      pinColor: Color(0xFF0891B2),
-      lat: 25.8500,
-      lng: 94.1500,
-      description:
-          'Community-run tourist village showcasing traditional Angami dwellings, local delicacies, and cultural heritage.',
-    ),
-    TouristSpot(
-      id: 'triple_falls',
-      name: 'Triple Falls',
-      district: 'Dimapur',
-      category: 'Nature & Treks',
-      subtitle: 'Dimapur • Nature & Treks',
-      image: 'assets/images/spot_zoological_park.png',
-      xRatio: 0.20,
-      yRatio: 0.63,
-      pinColor: Color(0xFF7C3AED),
-      lat: 25.8200,
-      lng: 93.7700,
-      description:
-          'Three-tier cascading waterfall nestled inside Seithekima village, offering serene pools and trekking trails.',
-    ),
-    TouristSpot(
-      id: 'shilloi',
-      name: 'Shilloi Lake',
-      district: 'Phek',
-      category: 'Nature & Treks',
-      subtitle: 'Phek • Scenic Lakes',
-      image: 'assets/images/trip_northeast.png',
-      xRatio: 0.68,
-      yRatio: 0.66,
-      pinColor: Color(0xFF0284C7),
-      lat: 25.6980,
-      lng: 94.7830,
-      description:
-          'Footprint-shaped natural lake revered by the Pochury tribe, shrouded in legends and serene alpine forests.',
-    ),
-    TouristSpot(
-      id: 'mokokchung',
-      name: 'Mokokchung Town & Longkhum',
-      district: 'Mokokchung',
-      category: 'Culture & Villages',
-      subtitle: 'Mokokchung • Culture & Villages',
-      image: 'assets/images/district_thumb_wokha.png',
-      xRatio: 0.52,
-      yRatio: 0.34,
-      pinColor: Color(0xFF16A34A),
-      lat: 26.3262,
-      lng: 94.5218,
-      description:
-          'The cultural center of the Ao Nagas, with Longkhum eagle nest viewpoints and historical rhododendron hills.',
-    ),
-    TouristSpot(
-      id: 'longwa',
-      name: 'Mon & Longwa Village',
-      district: 'Mon',
-      category: 'Heritage & History',
-      subtitle: 'Mon • Heritage & Culture',
-      image: 'assets/images/morung_ao.png',
-      xRatio: 0.74,
-      yRatio: 0.22,
-      pinColor: Color(0xFFBE123C),
-      lat: 26.7441,
-      lng: 95.0805,
-      description:
-          'Unique cross-border village straddling the India-Myanmar international boundary ruled by the hereditary Angh.',
-    ),
-    TouristSpot(
-      id: 'benreu',
-      name: 'Benreu Village & Mt Pauna',
-      district: 'Peren',
-      category: 'Peaks',
-      subtitle: 'Peren • Eco Tourism & Peaks',
-      image: 'assets/images/chumoukedima_hero.png',
-      xRatio: 0.24,
-      yRatio: 0.79,
-      pinColor: Color(0xFFCA8A04),
-      lat: 25.5300,
-      lng: 93.8500,
-      description:
-          'Perched at 1,950 m on Mount Pauna, home to the Zeliang tribe and sanctuary for rare Blyth’s Tragopan.',
-    ),
-    TouristSpot(
-      id: 'tiyi',
-      name: 'Mount Tiyi Ridge',
-      district: 'Wokha',
-      category: 'Viewpoints',
-      subtitle: 'Wokha • Viewpoints',
-      image: 'assets/images/wokha_hero.png',
-      xRatio: 0.46,
-      yRatio: 0.49,
-      pinColor: Color(0xFF0F766E),
-      lat: 26.1000,
-      lng: 94.2600,
-      description:
-          'Legendary mountain ridge of the Lothas offering 360-degree vistas across Assam plains and Doyang valley.',
-    ),
-    TouristSpot(
-      id: 'japfu',
-      name: 'Japfu Peak',
-      district: 'Kohima',
-      category: 'Peaks',
-      subtitle: 'Kohima • Mountain Peaks',
-      image: 'assets/images/spot_totsu_cliff.png',
-      xRatio: 0.36,
-      yRatio: 0.79,
-      pinColor: Color(0xFFEA580C),
-      lat: 25.5800,
-      lng: 94.0900,
-      description:
-          'Second highest peak in Nagaland (3,048 m) home to the world record Guinness tallest Rhododendron tree.',
-    ),
-  ];
+  bool _isSatMode = false;
+  String _selectedDistrict = 'All Spots';
+  String _searchQuery = '';
+  TouristMapDestination? _selectedSpot;
 
   @override
   void initState() {
     super.initState();
-    _selectedSpot = _allSpots[0];
+    _selectedSpot = TouristMapData.destinations[0];
   }
 
   @override
   void dispose() {
-    _searchController.dispose();
     _cardsScrollController.dispose();
-    _mapTransformController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
-  List<TouristSpot> get _filteredSpots {
-    return _allSpots.where((spot) {
-      final matchesCategory = _selectedCategory == 'All Places' ||
-          spot.category == _selectedCategory;
-      final matchesSearch = _searchQuery.isEmpty ||
-          spot.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          spot.district.toLowerCase().contains(_searchQuery.toLowerCase());
-      return matchesCategory && matchesSearch;
+  bool _matchesDistrict(String spotDistrict, String filterDistrict) {
+    if (filterDistrict == 'All Spots') return true;
+    final s = spotDistrict.toLowerCase().replaceAll('ü', 'u').trim();
+    final f = filterDistrict.toLowerCase().replaceAll('ü', 'u').trim();
+    return s == f || s.contains(f) || f.contains(s);
+  }
+
+  List<TouristMapDestination> _getFilteredSpots(List<TouristMapDestination> allSpots) {
+    return allSpots.where((spot) {
+      final matchesDistrict = _matchesDistrict(spot.district, _selectedDistrict);
+      final q = _searchQuery.toLowerCase().trim();
+      final matchesSearch = q.isEmpty ||
+          spot.name.toLowerCase().contains(q) ||
+          spot.district.toLowerCase().contains(q) ||
+          spot.category.toLowerCase().contains(q);
+
+      return matchesDistrict && matchesSearch;
     }).toList();
   }
 
-  void _onSpotSelected(TouristSpot spot) {
+  int _countForDistrict(String district, List<TouristMapDestination> allSpots) {
+    if (district == 'All Spots') {
+      return allSpots.length;
+    }
+    return allSpots.where((s) => _matchesDistrict(s.district, district)).length;
+  }
+
+  void _selectSpot(TouristMapDestination spot,
+      {bool openModal = false, List<TouristMapDestination>? currentSpots}) {
     setState(() {
       _selectedSpot = spot;
     });
 
-    // Scroll to matching card in horizontal carousel
-    final index = _filteredSpots.indexWhere((s) => s.id == spot.id);
+    // Center map smoothly
+    _mapController.move(LatLng(spot.lat, spot.lng), 13.0);
+
+    // Scroll horizontal carousel
+    final spots = currentSpots ?? TouristMapData.destinations;
+    final index = spots.indexWhere((s) => s.id == spot.id);
     if (index != -1 && _cardsScrollController.hasClients) {
       _cardsScrollController.animateTo(
-        index * 240.0,
+        index * 228.0,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOutCubic,
       );
     }
+
+    if (openModal) {
+      _showDestinationDetailsSheet(spot);
+    }
   }
 
-  void _resetMapTransform() {
-    _mapTransformController.value = Matrix4.identity();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Centered on Nagaland'),
-        duration: Duration(seconds: 1),
-      ),
-    );
+  void _resetMapCenter() {
+    _mapController.move(const LatLng(25.85, 94.15), 9.0);
   }
 
-  Future<void> _openExternalMap(TouristSpot spot) async {
-    final uri = Uri.parse(
+  Future<void> _openInGoogleMaps(TouristMapDestination spot) async {
+    Uri? uri;
+    if (spot.mapUrl != null && spot.mapUrl!.trim().isNotEmpty) {
+      uri = Uri.tryParse(spot.mapUrl!.trim());
+    }
+    uri ??= Uri.parse(
         'https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lng}');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 
-  void _showGoogleMapsSetupDialog() {
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: const [
-              BoxShadow(
-                color: Colors.black26,
-                blurRadius: 20,
-                offset: Offset(0, 8),
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.all(20),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header with Key icon, Title, Subtitle, Close
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFE6F9F5),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.vpn_key_rounded,
-                        color: Color(0xFF20B08D),
-                        size: 22,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text(
-                            'Google Maps API Setup',
-                            style: TextStyle(
-                              fontFamily: 'Lato',
-                              fontSize: 18,
-                              fontWeight: FontWeight.w900,
-                              color: Color(0xFF003848),
-                            ),
-                          ),
-                          SizedBox(height: 2),
-                          Text(
-                            'Google Cloud Package Whitelist',
-                            style: TextStyle(
-                              fontFamily: 'Lato',
-                              fontSize: 12.5,
-                              color: Color(0xFF64748B),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () => Navigator.pop(ctx),
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: const Icon(
-                          Icons.close_rounded,
-                          size: 20,
-                          color: Color(0xFF64748B),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
+  Future<void> _shareDestination(TouristMapDestination spot) async {
+    final mapLink = (spot.mapUrl != null && spot.mapUrl!.trim().isNotEmpty)
+        ? spot.mapUrl!.trim()
+        : 'https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lng}';
+    final text =
+        '📍 ${spot.name} (${spot.district}, Nagaland)\n\n${spot.description}\n\nGoogle Maps: $mapLink';
+    await SharePlus.instance.share(ShareParams(text: text));
+  }
 
-                // Blue Info Box
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF0F9FF),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFBAE6FD)),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Icon(
-                        Icons.info_rounded,
-                        color: Color(0xFF0284C7),
-                        size: 18,
-                      ),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Key AIzaSyD_...CJDk is configured. If native Google Maps displays a blank area, Google Cloud Console has an Android restriction allowing only app.joldipabo.nagaland.',
-                          style: TextStyle(
-                            fontFamily: 'Lato',
-                            fontSize: 12,
-                            height: 1.4,
-                            color: Color(0xFF0369A1),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                const Text(
-                  'Whitelist Hornbill in Google Cloud Console:',
-                  style: TextStyle(
-                    fontFamily: 'Lato',
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF1E293B),
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Field 1: Package Name
-                const Text(
-                  '1. Package Name (Application ID):',
-                  style: TextStyle(
-                    fontFamily: 'Lato',
-                    fontSize: 12,
-                    color: Color(0xFF64748B),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'hornbill.festival.nagaland',
-                        style: TextStyle(
-                          fontFamily: 'Lato',
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF1E293B),
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          Clipboard.setData(const ClipboardData(
-                              text: 'hornbill.festival.nagaland'));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Copied Package Name!'),
-                              duration: Duration(seconds: 1),
-                            ),
-                          );
-                        },
-                        child: const Icon(
-                          Icons.copy_rounded,
-                          size: 18,
-                          color: Color(0xFF20B08D),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Field 2: SHA-1
-                const Text(
-                  '2. SHA-1 Certificate Fingerprint:',
-                  style: TextStyle(
-                    fontFamily: 'Lato',
-                    fontSize: 12,
-                    color: Color(0xFF64748B),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          '5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25',
-                          style: TextStyle(
-                            fontFamily: 'monospace',
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF1E293B),
-                          ),
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          Clipboard.setData(const ClipboardData(
-                              text:
-                                  '5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25'));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Copied SHA-1 Fingerprint!'),
-                              duration: Duration(seconds: 1),
-                            ),
-                          );
-                        },
-                        child: const Icon(
-                          Icons.copy_rounded,
-                          size: 18,
-                          color: Color(0xFF20B08D),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Quick Steps
-                const Text(
-                  'Quick Steps:',
-                  style: TextStyle(
-                    fontFamily: 'Lato',
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF334155),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  '1. Go to console.cloud.google.com → APIs & Services → Credentials\n'
-                  '2. Select API Key (AIzaSyD_...)\n'
-                  '3. Under Application restrictions → Android apps, click "+ Add an item"\n'
-                  '4. Enter package name and SHA-1 above, then click Save.',
-                  style: TextStyle(
-                    fontFamily: 'Lato',
-                    fontSize: 11.5,
-                    height: 1.5,
-                    color: Color(0xFF64748B),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Switch to Live Interactive Map Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      setState(() {
-                        _isGoogleMode = false;
-                      });
-                      Navigator.pop(ctx);
-                    },
-                    icon: const Icon(
-                      Icons.map_outlined,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                    label: const Text(
-                      'Switch to Live Interactive Map',
-                      style: TextStyle(
-                        fontFamily: 'Lato',
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF20B08D),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      elevation: 0,
-                    ),
-                  ),
-                ),
-              ],
+  Widget _buildSpotImage(TouristMapDestination spot,
+      {double? height, double? width, BoxFit fit = BoxFit.cover}) {
+    final hasNetwork =
+        spot.imageUrl != null && spot.imageUrl!.trim().startsWith('http');
+    if (hasNetwork) {
+      return CachedNetworkImage(
+        imageUrl: spot.imageUrl!.trim(),
+        height: height,
+        width: width,
+        fit: fit,
+        alignment: Alignment.center,
+        placeholder: (context, url) => Container(
+          height: height,
+          width: width,
+          color: const Color(0xFFF1F5F9),
+          alignment: Alignment.center,
+          child: const SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Color(0xFF003848),
             ),
           ),
         ),
+        errorWidget: (context, url, error) {
+          if (spot.imageAsset.isNotEmpty) {
+            return Image.asset(
+              spot.imageAsset,
+              height: height,
+              width: width,
+              fit: fit,
+              alignment: Alignment.center,
+              errorBuilder: (_, __, ___) => _buildPlaceholder(height, width),
+            );
+          }
+          return _buildPlaceholder(height, width);
+        },
+      );
+    }
+    return Image.asset(
+      spot.imageAsset,
+      height: height,
+      width: width,
+      fit: fit,
+      alignment: Alignment.center,
+      errorBuilder: (_, __, ___) => _buildPlaceholder(height, width),
+    );
+  }
+
+  Widget _buildPlaceholder(double? height, double? width) {
+    return Container(
+      height: height,
+      width: width,
+      color: const Color(0xFFF1F5F9),
+      alignment: Alignment.center,
+      child: const Icon(
+        Icons.image_outlined,
+        size: 40,
+        color: Color(0xFF94A3B8),
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        bottom: false,
-        child: Stack(
-          children: [
-            Column(
-              children: [
-                // 1. Top Header Bar
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Row(
-                    children: [
-                      // Back Button
-                      GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF1F5F9),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          alignment: Alignment.center,
-                          child: const Icon(
-                            Icons.arrow_back_ios_new_rounded,
-                            size: 18,
-                            color: Color(0xFF003848),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
+  @visibleForTesting
+  void showDestinationDetailsSheet(TouristMapDestination spot) {
+    _showDestinationDetailsSheet(spot);
+  }
 
-                      // Title & Subtitle
-                      Expanded(
+  void _showDestinationDetailsSheet(TouristMapDestination spot) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      isDismissible: true,
+      enableDrag: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.45),
+      builder: (ctx) {
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => Navigator.pop(ctx),
+          child: GestureDetector(
+            onTap: () {},
+            child: DraggableScrollableSheet(
+              initialChildSize: 0.75,
+              minChildSize: 0.35,
+              maxChildSize: 0.75,
+              builder: (ctx, scrollController) {
+                final modalBottomInset = MediaQuery.of(ctx).padding.bottom > 0
+                    ? MediaQuery.of(ctx).padding.bottom
+                    : MediaQuery.of(ctx).viewPadding.bottom;
+                return Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Stack(
+                    children: [
+                      SingleChildScrollView(
+                        controller: scrollController,
+                        padding: EdgeInsets.only(bottom: 95 + modalBottomInset),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
-                            Text(
-                              'Nagaland Tourist Map',
-                              style: TextStyle(
-                                fontFamily: 'Lato',
-                                fontSize: 17,
-                                fontWeight: FontWeight.w900,
-                                color: Color(0xFF003848),
-                              ),
-                            ),
-                            SizedBox(height: 2),
-                            Text(
-                              'Explore 15 Iconic Destinations',
-                              style: TextStyle(
-                                fontFamily: 'Lato',
-                                fontSize: 11.5,
-                                color: Color(0xFF64748B),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // Trailing Buttons Row
-                      // Mode Button (Google / Live)
-                      GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _isGoogleMode = !_isGoogleMode;
-                          });
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: _isGoogleMode
-                                ? const Color(0xFF003848)
-                                : const Color(0xFFF1F5F9),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Full Bleed Top Hero Image
+                            SizedBox(
+                              height: 220,
+                          width: double.infinity,
+                          child: Stack(
+                            fit: StackFit.expand,
                             children: [
-                              _isGoogleMode
-                                  ? const Text(
-                                      'G',
-                                      style: TextStyle(
-                                        fontFamily: 'Lato',
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w900,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : const Icon(
-                                      Icons.language_rounded,
-                                      size: 14,
-                                      color: Color(0xFF003848),
+                              _buildSpotImage(spot, fit: BoxFit.cover),
+                              // Top Gradient Shadow for Action Controls
+                              Positioned(
+                                left: 0,
+                                right: 0,
+                                top: 0,
+                                height: 75,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [
+                                        Colors.black.withValues(alpha: 0.35),
+                                        Colors.transparent,
+                                      ],
                                     ),
-                              const SizedBox(width: 4),
-                              Text(
-                                _isGoogleMode ? 'Google' : 'Live',
-                                style: TextStyle(
-                                  fontFamily: 'Lato',
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: _isGoogleMode
-                                      ? Colors.white
-                                      : const Color(0xFF003848),
+                                  ),
+                                ),
+                              ),
+                              // Share & Close Buttons
+                              Positioned(
+                                top: 14,
+                                right: 14,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    GestureDetector(
+                                      onTap: () => _shareDestination(spot),
+                                      child: Container(
+                                        width: 40,
+                                        height: 40,
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          shape: BoxShape.circle,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withValues(alpha: 0.15),
+                                              blurRadius: 6,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        alignment: Alignment.center,
+                                        child: const Icon(
+                                          Icons.ios_share_rounded,
+                                          size: 20,
+                                          color: Color(0xFF003848),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    GestureDetector(
+                                      onTap: () => Navigator.pop(ctx),
+                                      child: Container(
+                                        width: 40,
+                                        height: 40,
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          shape: BoxShape.circle,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withValues(alpha: 0.15),
+                                              blurRadius: 6,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        alignment: Alignment.center,
+                                        child: const Icon(
+                                          Icons.close_rounded,
+                                          size: 22,
+                                          color: Color(0xFF003848),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 6),
 
-                      // Map Style Button (Map / Sat)
+                        // Content Area
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Tags: Category & District (Wrap prevents horizontal overflow)
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 14, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFFFBEB),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Text(
+                                      spot.category,
+                                      style: const TextStyle(
+                                        fontFamily: 'Lato',
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFFD97706),
+                                      ),
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF1F5F9),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.location_on_rounded,
+                                          size: 13,
+                                          color: Color(0xFF64748B),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '${spot.district} District',
+                                          style: const TextStyle(
+                                            fontFamily: 'Lato',
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFF475569),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+
+                              // Destination Title
+                              Text(
+                                spot.name,
+                                style: const TextStyle(
+                                  fontFamily: 'Lato',
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w900,
+                                  color: Color(0xFF003848),
+                                  height: 1.25,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+
+                              // 1. ADDRESS Card
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: const [
+                                        Icon(
+                                          Icons.pin_drop_rounded,
+                                          size: 16,
+                                          color: Color(0xFF003848),
+                                        ),
+                                        SizedBox(width: 6),
+                                        Text(
+                                          'ADDRESS',
+                                          style: TextStyle(
+                                            fontFamily: 'Lato',
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.w900,
+                                            color: Color(0xFF003848),
+                                            letterSpacing: 0.6,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      spot.address,
+                                      style: const TextStyle(
+                                        fontFamily: 'Lato',
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF334155),
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+
+                              if (spot.timing != null && spot.timing!.trim().isNotEmpty) ...[
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF8FAFC),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: const [
+                                          Icon(
+                                            Icons.access_time_rounded,
+                                            size: 16,
+                                            color: Color(0xFF003848),
+                                          ),
+                                          SizedBox(width: 6),
+                                          Text(
+                                            'TIMINGS',
+                                            style: TextStyle(
+                                              fontFamily: 'Lato',
+                                              fontSize: 12.5,
+                                              fontWeight: FontWeight.w900,
+                                              color: Color(0xFF003848),
+                                              letterSpacing: 0.6,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        spot.timing!,
+                                        style: const TextStyle(
+                                          fontFamily: 'Lato',
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF334155),
+                                          height: 1.4,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
+                              ],
+
+                              // 3. ABOUT DESTINATION Card
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: const [
+                                        Icon(
+                                          Icons.info_outline_rounded,
+                                          size: 16,
+                                          color: Color(0xFF003848),
+                                        ),
+                                        SizedBox(width: 6),
+                                        Text(
+                                          'ABOUT DESTINATION',
+                                          style: TextStyle(
+                                            fontFamily: 'Lato',
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.w900,
+                                            color: Color(0xFF003848),
+                                            letterSpacing: 0.6,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      spot.description,
+                                      style: const TextStyle(
+                                        fontFamily: 'Lato',
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w500,
+                                        color: Color(0xFF334155),
+                                        height: 1.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+
+                              // 4. Highlight Tags
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: spot.tags.map((tag) {
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 7),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF1F5F9),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.auto_awesome,
+                                          size: 13,
+                                          color: Color(0xFF003848),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          tag,
+                                          style: const TextStyle(
+                                            fontFamily: 'Lato',
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xFF334155),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Bottom Sticky CTA Button (Open in Google Maps)
+                  Positioned(
+                    left: 20,
+                    right: 20,
+                    bottom: 20 + modalBottomInset,
+                    child: SizedBox(
+                      height: 52,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _openInGoogleMaps(spot),
+                        icon: const Icon(
+                          Icons.navigation_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                        label: const Text(
+                          'Open in Google Maps',
+                          style: TextStyle(
+                            fontFamily: 'Lato',
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFF59E0B),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          elevation: 4,
+                          shadowColor:
+                              const Color(0xFFF59E0B).withValues(alpha: 0.4),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  },
+);
+}
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<DistrictInfo>>(
+      stream: FirebaseService().getDestinations(),
+      builder: (context, snapshot) {
+        final rawDistricts = (snapshot.hasData && snapshot.data!.isNotEmpty)
+            ? snapshot.data!
+            : NagalandData.districts;
+        final districtFilters = <String>[
+          'All Spots',
+          ...rawDistricts
+              .map((d) => d.name.trim())
+              .where((name) => name.isNotEmpty)
+              .toSet(),
+        ];
+        if (!districtFilters.contains(_selectedDistrict)) {
+          _selectedDistrict = 'All Spots';
+        }
+        final allSpots = TouristMapData.fromDistricts(rawDistricts);
+        final spots = _getFilteredSpots(allSpots);
+
+        // Ensure a selected spot is active
+        if (_selectedSpot == null || !allSpots.any((s) => s.id == _selectedSpot!.id)) {
+          _selectedSpot = spots.isNotEmpty
+              ? spots.first
+              : (allSpots.isNotEmpty ? allSpots.first : null);
+        }
+
+        return Scaffold(
+          backgroundColor: const Color(0xFF003848),
+          body: SafeArea(
+            bottom: true,
+            child: Column(
+              children: [
+                // 1. Dark Teal Top Header Row (Title & Map/Sat Toggler)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Nagaland Tourist Map',
+                              style: AppTextStyles.headerTitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              '${allSpots.length} Iconic Spots • Google Maps',
+                              style: AppTextStyles.headerSubtitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+
+                      // Map Style Button (Map / Sat) - Solid white, keeping size same
                       GestureDetector(
                         onTap: () {
                           setState(() {
@@ -779,10 +690,17 @@ class _TouristMapScreenState extends State<TouristMapScreen> {
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 6),
+                              horizontal: 12, vertical: 7),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF1F5F9),
+                            color: Colors.white,
                             borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.1),
+                                blurRadius: 4,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -791,16 +709,16 @@ class _TouristMapScreenState extends State<TouristMapScreen> {
                                 _isSatMode
                                     ? Icons.public_rounded
                                     : Icons.map_outlined,
-                                size: 14,
+                                size: 15,
                                 color: const Color(0xFF003848),
                               ),
-                              const SizedBox(width: 4),
+                              const SizedBox(width: 5),
                               Text(
                                 _isSatMode ? 'Sat' : 'Map',
                                 style: const TextStyle(
                                   fontFamily: 'Lato',
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
                                   color: Color(0xFF003848),
                                 ),
                               ),
@@ -808,555 +726,414 @@ class _TouristMapScreenState extends State<TouristMapScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 6),
-
-                      // Key Setup Button
-                      GestureDetector(
-                        onTap: _showGoogleMapsSetupDialog,
-                        child: Container(
-                          padding: const EdgeInsets.all(7),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF1F5F9),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Icon(
-                            Icons.vpn_key_outlined,
-                            size: 16,
-                            color: Color(0xFF003848),
-                          ),
-                        ),
-                      ),
                     ],
                   ),
                 ),
 
-                // 2. Search Bar
+                // 2. District Filter Chips
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  child: Container(
-                    height: 44,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.search_rounded,
-                          color: Color(0xFF94A3B8),
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextField(
-                            controller: _searchController,
-                            onChanged: (val) {
-                              setState(() {
-                                _searchQuery = val;
-                              });
-                            },
-                            style: const TextStyle(
-                              fontFamily: 'Lato',
-                              fontSize: 13,
-                              color: Color(0xFF1E293B),
-                            ),
-                            decoration: const InputDecoration(
-                              hintText:
-                                  'Search destination, district (e.g. Kohima, Dzukou)...',
-                              hintStyle: TextStyle(
-                                fontFamily: 'Lato',
-                                fontSize: 12,
-                                color: Color(0xFF94A3B8),
-                              ),
-                              border: InputBorder.none,
-                              isDense: true,
-                              contentPadding: EdgeInsets.zero,
-                            ),
-                          ),
-                        ),
-                        if (_searchQuery.isNotEmpty)
-                          GestureDetector(
-                            onTap: () {
-                              _searchController.clear();
-                              setState(() {
-                                _searchQuery = '';
-                              });
-                            },
-                            child: const Icon(
-                              Icons.close_rounded,
-                              size: 18,
-                              color: Color(0xFF94A3B8),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // 3. Category Filter Chips
-                SizedBox(
-                  height: 48,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 7),
-                    itemCount: _categories.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 8),
-                    itemBuilder: (ctx, idx) {
-                      final cat = _categories[idx];
-                      final isSelected = _selectedCategory == cat;
-                      return GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _selectedCategory = cat;
-                          });
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 180),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? const Color(0xFF20B08D)
-                                : Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            border: isSelected
-                                ? null
-                                : Border.all(color: const Color(0xFFE2E8F0)),
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            cat,
-                            style: TextStyle(
-                              fontFamily: 'Lato',
-                              fontSize: 12,
-                              fontWeight: isSelected
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: SizedBox(
+                    height: 40,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      clipBehavior: Clip.none,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: districtFilters.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 8),
+                      itemBuilder: (ctx, idx) {
+                        final dist = districtFilters[idx];
+                        final isSelected = _selectedDistrict == dist;
+                        final count = _countForDistrict(dist, allSpots);
+                        return GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _selectedDistrict = dist;
+                            });
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 6),
+                            decoration: BoxDecoration(
                               color: isSelected
                                   ? Colors.white
-                                  : const Color(0xFF475569),
+                                  : Colors.white.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: isSelected
+                                    ? Colors.white
+                                    : Colors.white.withValues(alpha: 0.25),
+                              ),
                             ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-
-                // 4. Alert Banner (when in Google mode or notice visible)
-                if (_isGoogleMode && _showSetupBanner)
-                  GestureDetector(
-                    onTap: _showGoogleMapsSetupDialog,
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFE6F9F5),
-                        border: Border.symmetric(
-                          horizontal: BorderSide(
-                            color: Color(0xFFB9F1E6),
-                            width: 0.8,
-                          ),
-                        ),
-                      ),
-                      child: Row(
-                        children: const [
-                          Icon(
-                            Icons.info_outline_rounded,
-                            size: 16,
-                            color: Color(0xFF0D9488),
-                          ),
-                          SizedBox(width: 8),
-                          Expanded(
+                            alignment: Alignment.center,
                             child: Text(
-                              'Google Maps active (Key AIzaSyD...). Tap for setup instructio...',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                              '$dist ($count)',
                               style: TextStyle(
                                 fontFamily: 'Lato',
                                 fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF0F766E),
+                                fontWeight: isSelected
+                                    ? FontWeight.w900
+                                    : FontWeight.w600,
+                                color: isSelected
+                                    ? const Color(0xFF003848)
+                                    : Colors.white,
                               ),
                             ),
                           ),
-                          Icon(
-                            Icons.chevron_right_rounded,
-                            size: 18,
-                            color: Color(0xFF0D9488),
-                          ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
                   ),
+                ),
 
-                // 5. Map Canvas Area
+                // Curved Body Sheet with Map
                 Expanded(
-                  child: Stack(
-                    children: [
-                      // Interactive Canvas
-                      InteractiveViewer(
-                        transformationController: _mapTransformController,
-                        minScale: 0.7,
-                        maxScale: 3.5,
-                        boundaryMargin: const EdgeInsets.all(80),
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            final mapWidth = constraints.maxWidth;
-                            final mapHeight = constraints.maxHeight;
-
-                            return Container(
-                              width: mapWidth,
-                              height: mapHeight,
-                              color: _isGoogleMode
-                                  ? const Color(0xFF121212)
-                                  : Colors.white,
-                              child: Stack(
-                                children: [
-                                  // Map Background
-                                  if (!_isGoogleMode)
-                                    Positioned.fill(
-                                      child: Image.asset(
-                                        _isSatMode
-                                            ? 'assets/images/tourist_map/nagaland_map_sat.jpg'
-                                            : 'assets/images/tourist_map/nagaland_map_terrain.jpg',
-                                        fit: BoxFit.cover,
-                                      ),
-                                    )
-                                  else if (_isSatMode)
-                                    Positioned.fill(
-                                      child: Image.asset(
-                                        'assets/images/tourist_map/nagaland_map_sat.jpg',
-                                        fit: BoxFit.cover,
-                                      ),
-                                    ),
-
-                                  // Place Markers on Map Canvas
-                                  ..._filteredSpots.map((spot) {
-                                    final posX = spot.xRatio * mapWidth;
-                                    final posY = spot.yRatio * mapHeight;
-                                    final isSpotSelected =
-                                        _selectedSpot?.id == spot.id;
-
-                                    return Positioned(
-                                      left: posX - 28,
-                                      top: posY - 48,
-                                      child: GestureDetector(
-                                        onTap: () => _onSpotSelected(spot),
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            // Marker Pin Pinhead
-                                            AnimatedContainer(
-                                              duration: const Duration(
-                                                  milliseconds: 200),
-                                              padding: EdgeInsets.all(
-                                                  isSpotSelected ? 5 : 4),
-                                              decoration: BoxDecoration(
-                                                color: spot.pinColor,
-                                                shape: BoxShape.circle,
-                                                border: Border.all(
-                                                  color: Colors.white,
-                                                  width: isSpotSelected ? 3 : 2,
-                                                ),
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: isSpotSelected
-                                                        ? spot.pinColor
-                                                            .withValues(
-                                                                alpha: 0.6)
-                                                        : Colors.black38,
-                                                    blurRadius: isSpotSelected
-                                                        ? 10
-                                                        : 4,
-                                                    spreadRadius: isSpotSelected
-                                                        ? 2
-                                                        : 0,
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(28)),
+                    ),
+                    child: ClipRRect(
+                      borderRadius:
+                          const BorderRadius.vertical(top: Radius.circular(28)),
+                      child: RepaintBoundary(
+                        child: Stack(
+                          children: [
+                            FlutterMap(
+                              mapController: _mapController,
+                              options: MapOptions(
+                                initialCenter: const LatLng(25.85, 94.15),
+                                initialZoom: 9.0,
+                                minZoom: 6.0,
+                                maxZoom: 18.0,
+                                interactionOptions: const InteractionOptions(
+                                  flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+                                ),
+                                onTap: (_, point) {
+                                  TouristMapDestination? closest;
+                                  double minDist = double.infinity;
+                                  for (final s in spots) {
+                                    final dLat = (s.lat - point.latitude).abs();
+                                    final dLng = (s.lng - point.longitude).abs();
+                                    final dist = dLat + dLng;
+                                    if (dist < 0.04 && dist < minDist) {
+                                      minDist = dist;
+                                      closest = s;
+                                    }
+                                  }
+                                  if (closest != null) {
+                                    _selectSpot(closest, openModal: true, currentSpots: spots);
+                                  }
+                                },
+                              ),
+                              children: [
+                                TileLayer(
+                                  urlTemplate: _isSatMode
+                                      ? 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}'
+                                      : 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+                                  userAgentPackageName: 'hornbill.festival.nagaland',
+                                ),
+                                MarkerLayer(
+                                  markers: spots.map((spot) {
+                                    final isSelected = _selectedSpot?.id == spot.id;
+                                    return Marker(
+                                      point: LatLng(spot.lat, spot.lng),
+                                      width: 140,
+                                      height: 62,
+                                      alignment: Alignment.topCenter,
+                                      child: MouseRegion(
+                                        cursor: SystemMouseCursors.click,
+                                        child: GestureDetector(
+                                          behavior: HitTestBehavior.opaque,
+                                          onTap: () => _selectSpot(spot, openModal: true, currentSpots: spots),
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              if (isSelected)
+                                                Container(
+                                                  width: 32,
+                                                  height: 32,
+                                                  decoration: BoxDecoration(
+                                                    color: const Color(0xFF0284C7),
+                                                    shape: BoxShape.circle,
+                                                    border: Border.all(
+                                                        color: Colors.white, width: 3),
+                                                    boxShadow: [
+                                                      BoxShadow(
+                                                        color: const Color(0xFF0284C7)
+                                                            .withValues(alpha: 0.5),
+                                                        blurRadius: 10,
+                                                        spreadRadius: 3,
+                                                      ),
+                                                    ],
                                                   ),
-                                                ],
-                                              ),
-                                              child: Container(
-                                                width: isSpotSelected ? 18 : 14,
-                                                height:
-                                                    isSpotSelected ? 18 : 14,
-                                                decoration: const BoxDecoration(
-                                                  color: Colors.white,
-                                                  shape: BoxShape.circle,
-                                                ),
-                                                alignment: Alignment.center,
-                                                child: Container(
-                                                  width: 8,
-                                                  height: 8,
+                                                  alignment: Alignment.center,
+                                                  child: const Icon(
+                                                    Icons.location_on_rounded,
+                                                    color: Colors.white,
+                                                    size: 18,
+                                                  ),
+                                                )
+                                              else
+                                                Container(
+                                                  width: 26,
+                                                  height: 26,
                                                   decoration: BoxDecoration(
                                                     color: spot.pinColor,
                                                     shape: BoxShape.circle,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                            // Pin pointer tail
-                                            ClipPath(
-                                              clipper: _PinTailClipper(),
-                                              child: Container(
-                                                width: 8,
-                                                height: 6,
-                                                color: spot.pinColor,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 2),
-
-                                            // Place / District Label Tag
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 6,
-                                                      vertical: 2),
-                                              decoration: BoxDecoration(
-                                                color: isSpotSelected
-                                                    ? spot.pinColor
-                                                    : Colors.white
-                                                        .withValues(alpha: 0.9),
-                                                borderRadius:
-                                                    BorderRadius.circular(6),
-                                                boxShadow: const [
-                                                  BoxShadow(
-                                                    color: Colors.black26,
-                                                    blurRadius: 3,
-                                                  ),
-                                                ],
-                                              ),
-                                              child: Text(
-                                                spot.name.length > 14
-                                                    ? spot.district
-                                                    : spot.name,
-                                                style: TextStyle(
-                                                  fontFamily: 'Lato',
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.w800,
-                                                  color: isSpotSelected
-                                                      ? Colors.white
-                                                      : const Color(0xFF1E293B),
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  }),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-
-                      // Floating Locate / Center Button
-                      Positioned(
-                        top: 16,
-                        right: 16,
-                        child: GestureDetector(
-                          onTap: _resetMapTransform,
-                          child: Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.15),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ],
-                            ),
-                            alignment: Alignment.center,
-                            child: const Icon(
-                              Icons.my_location_rounded,
-                              color: Color(0xFF1E293B),
-                              size: 22,
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      // 6. Bottom Horizontal Carousel of Destination Cards
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 96, // Floating directly above the bottom nav bar
-                        child: SizedBox(
-                          height: 185,
-                          child: ListView.separated(
-                            controller: _cardsScrollController,
-                            scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            itemCount: _filteredSpots.length,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(width: 14),
-                            itemBuilder: (ctx, idx) {
-                              final spot = _filteredSpots[idx];
-                              final isSelected = _selectedSpot?.id == spot.id;
-
-                              return GestureDetector(
-                                onTap: () => _onSpotSelected(spot),
-                                child: Container(
-                                  width: 232,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: isSelected
-                                        ? Border.all(
-                                            color: const Color(0xFF20B08D),
-                                            width: 2.2,
-                                          )
-                                        : Border.all(
-                                            color: const Color(0xFFF1F5F9),
-                                            width: 1,
-                                          ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black
-                                            .withValues(alpha: 0.12),
-                                        blurRadius: 10,
-                                        offset: const Offset(0, 4),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      // Image
-                                      ClipRRect(
-                                        borderRadius:
-                                            const BorderRadius.vertical(
-                                          top: Radius.circular(18),
-                                        ),
-                                        child: Image.asset(
-                                          spot.image,
-                                          height: 108,
-                                          width: double.infinity,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (_, __, ___) =>
-                                              Container(
-                                            height: 108,
-                                            color: const Color(0xFFF1F5F9),
-                                            alignment: Alignment.center,
-                                            child: const Icon(
-                                              Icons.image_outlined,
-                                              color: Color(0xFF94A3B8),
-                                              size: 32,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-
-                                      // Details
-                                      Expanded(
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 12, vertical: 8),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              Text(
-                                                spot.name,
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(
-                                                  fontFamily: 'Lato',
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.w800,
-                                                  color: Color(0xFF0F172A),
-                                                ),
-                                              ),
-                                              const SizedBox(height: 3),
-                                              Row(
-                                                children: [
-                                                  Expanded(
-                                                    child: Text(
-                                                      spot.subtitle,
-                                                      maxLines: 1,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                      style: const TextStyle(
-                                                        fontFamily: 'Lato',
-                                                        fontSize: 11,
-                                                        color:
-                                                            Color(0xFF64748B),
-                                                        fontWeight:
-                                                            FontWeight.w500,
+                                                    border: Border.all(
+                                                        color: Colors.white, width: 2),
+                                                    boxShadow: [
+                                                      BoxShadow(
+                                                        color: Colors.black
+                                                            .withValues(alpha: 0.25),
+                                                        blurRadius: 4,
+                                                        offset: const Offset(0, 2),
                                                       ),
-                                                    ),
+                                                    ],
                                                   ),
-                                                  GestureDetector(
-                                                    onTap: () =>
-                                                        _openExternalMap(spot),
-                                                    child: const Icon(
-                                                      Icons.near_me_outlined,
-                                                      size: 16,
-                                                      color: Color(0xFF20B08D),
-                                                    ),
+                                                  alignment: Alignment.center,
+                                                  child: const Icon(
+                                                    Icons.location_on_rounded,
+                                                    color: Colors.white,
+                                                    size: 15,
                                                   ),
-                                                ],
+                                                ),
+                                              const SizedBox(height: 2),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(
+                                                    horizontal: 7, vertical: 2.5),
+                                                decoration: BoxDecoration(
+                                                  color: isSelected
+                                                      ? const Color(0xFF003848)
+                                                      : const Color(0xFF1E293B)
+                                                          .withValues(alpha: 0.9),
+                                                  borderRadius:
+                                                      BorderRadius.circular(6),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: Colors.black
+                                                          .withValues(alpha: 0.2),
+                                                      blurRadius: 4,
+                                                      offset: const Offset(0, 1),
+                                                    ),
+                                                  ],
+                                                ),
+                                                child: Text(
+                                                  spot.name,
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: TextStyle(
+                                                    fontFamily: 'Lato',
+                                                    fontSize: 9.5,
+                                                    fontWeight: isSelected
+                                                        ? FontWeight.w900
+                                                        : FontWeight.w700,
+                                                    color: isSelected
+                                                        ? const Color(0xFF5EEAD4)
+                                                        : Colors.white,
+                                                  ),
+                                                ),
                                               ),
                                             ],
                                           ),
                                         ),
                                       ),
+                                    );
+                                  }).toList(),
+                                ),
+                              ],
+                            ),
+
+                            // Re-center Target Button
+                            Positioned(
+                              top: 14,
+                              right: 14,
+                              child: GestureDetector(
+                                onTap: _resetMapCenter,
+                                child: Container(
+                                  width: 42,
+                                  height: 42,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.15),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 2),
+                                      ),
                                     ],
                                   ),
+                                  alignment: Alignment.center,
+                                  child: const Icon(
+                                    Icons.my_location_rounded,
+                                    size: 20,
+                                    color: Color(0xFF003848),
+                                  ),
                                 ),
-                              );
-                            },
-                          ),
+                              ),
+                            ),
+
+                            // Attribution tag
+                            Positioned(
+                              right: 8,
+                              bottom: 195,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.8),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Text(
+                                  'Leaflet | © Google Maps',
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    color: Color(0xFF64748B),
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            // Bottom Horizontal Carousel
+                            Positioned(
+                              left: 0,
+                              right: 0,
+                              bottom: 12,
+                              height: 175,
+                              child: ListView.separated(
+                                controller: _cardsScrollController,
+                                scrollDirection: Axis.horizontal,
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                itemCount: spots.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(width: 12),
+                                itemBuilder: (ctx, idx) {
+                                  final spot = spots[idx];
+                                  final isSelected = _selectedSpot?.id == spot.id;
+
+                                  return GestureDetector(
+                                    onTap: () => _selectSpot(spot, openModal: true, currentSpots: spots),
+                                    child: AnimatedContainer(
+                                      duration: const Duration(milliseconds: 200),
+                                      width: 216,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(18),
+                                        border: Border.all(
+                                          color: isSelected
+                                              ? const Color(0xFF20B08D)
+                                              : const Color(0xFFE2E8F0),
+                                          width: isSelected ? 2 : 1,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: isSelected
+                                                ? const Color(0xFF20B08D)
+                                                    .withValues(alpha: 0.2)
+                                                : Colors.black.withValues(alpha: 0.08),
+                                            blurRadius: isSelected ? 12 : 6,
+                                            offset: const Offset(0, 3),
+                                          ),
+                                        ],
+                                      ),
+                                      clipBehavior: Clip.antiAlias,
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          // Image with top border radius
+                                          Expanded(
+                                            child: ClipRRect(
+                                              borderRadius: const BorderRadius.vertical(
+                                                top: Radius.circular(16),
+                                              ),
+                                              child: Stack(
+                                                fit: StackFit.expand,
+                                                children: [
+                                                  _buildSpotImage(spot, fit: BoxFit.cover),
+                                                  // District pill tag on image
+                                                  Positioned(
+                                                    left: 10,
+                                                    bottom: 8,
+                                                    child: Container(
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                              horizontal: 8, vertical: 3),
+                                                      decoration: BoxDecoration(
+                                                        color: spot.pinColor,
+                                                        borderRadius:
+                                                            BorderRadius.circular(6),
+                                                      ),
+                                                      child: Text(
+                                                        spot.district,
+                                                        style: const TextStyle(
+                                                          fontFamily: 'Lato',
+                                                          fontSize: 10,
+                                                          fontWeight: FontWeight.w800,
+                                                          color: Colors.white,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+
+                                          // Content
+                                          Padding(
+                                            padding: const EdgeInsets.all(10),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  spot.name,
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    fontFamily: 'Lato',
+                                                    fontSize: 13.5,
+                                                    fontWeight: FontWeight.w800,
+                                                    color: Color(0xFF0F172A),
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  spot.category,
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    fontFamily: 'Lato',
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Color(0xFF64748B),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ],
             ),
-
-            // 7. Floating Custom Bottom Navigation Bar
-            CustomBottomBar(
-              currentIndex: 3, // Nagaland tab active as seen in screenshots
-              onTap: (index) {
-                if (index == 0) {
-                  Navigator.pop(context);
-                } else {
-                  Navigator.pop(context);
-                }
-              },
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
-}
-
-class _PinTailClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path();
-    path.moveTo(0, 0);
-    path.lineTo(size.width, 0);
-    path.lineTo(size.width / 2, size.height);
-    path.close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }

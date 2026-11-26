@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../theme/app_theme.dart';
 import 'trip_planners_screen.dart';
 
 class TripsScreen extends StatefulWidget {
@@ -53,47 +54,26 @@ class _TripsScreenState extends State<TripsScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF003848),
       body: SafeArea(
-        bottom: false,
+        bottom: true,
         child: Column(
           children: [
             // Deep Teal Top Header
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      IconButton(
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
-                        onPressed: () => Navigator.pop(context),
+                      Text(
+                        'Explore Tours',
+                        style: AppTextStyles.headerTitle,
                       ),
-                      const SizedBox(width: 14),
-                      const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Explore Trips',
-                            style: TextStyle(
-                              fontFamily: 'Lato',
-                              fontWeight: FontWeight.w900,
-                              fontSize: 28,
-                              color: Colors.white,
-                              height: 1.1,
-                            ),
-                          ),
-                          SizedBox(height: 2),
-                          Text(
-                            'Camping • Trekking • Tours',
-                            style: TextStyle(
-                              fontFamily: 'Lato',
-                              fontSize: 13,
-                              color: Colors.white70,
-                            ),
-                          ),
-                        ],
+                      SizedBox(height: 3),
+                      Text(
+                        'Camping • Trekking • Tours',
+                        style: AppTextStyles.headerSubtitle,
                       ),
                     ],
                   ),
@@ -147,6 +127,7 @@ class _TripsScreenState extends State<TripsScreen> {
             // White Rounded Body Sheet
             Expanded(
               child: Container(
+                clipBehavior: Clip.antiAlias,
                 decoration: const BoxDecoration(
                   color: Color(0xFFF9FAFB),
                   borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
@@ -162,7 +143,7 @@ class _TripsScreenState extends State<TripsScreen> {
                           Icon(Icons.local_fire_department_rounded, color: Color(0xFF1E293B), size: 24),
                           SizedBox(width: 6),
                           Text(
-                            'Popular Desinations',
+                            'Popular Destinations',
                             style: TextStyle(
                               fontFamily: 'Lato',
                               fontWeight: FontWeight.w800,
@@ -189,104 +170,129 @@ class _TripsScreenState extends State<TripsScreen> {
 
   Widget _buildTripCard(Map<String, dynamic> trip) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 18),
+      height: 185,
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEBEBEB)),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            child: Image.asset(
-              trip["image"],
-              height: 165,
-              width: double.infinity,
-              fit: BoxFit.cover,
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        trip["title"],
-                        style: const TextStyle(
-                          fontFamily: 'Lato',
-                          fontWeight: FontWeight.w800,
-                          fontSize: 17,
-                          color: Color(0xFF1E293B),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          const Icon(Icons.local_fire_department_rounded, color: Color(0xFF64748B), size: 15),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              trip["subtitle"],
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontFamily: 'Lato',
-                                fontSize: 13,
-                                color: Color(0xFF64748B),
-                              ),
-                            ),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => TripPlannersScreen(
+                  tourTitle: trip["plannerSubtitle"] ?? trip["title"],
+                ),
+              ),
+            );
+          },
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Background Image
+              Image.asset(
+                trip["image"],
+                fit: BoxFit.cover,
+                alignment: Alignment.center,
+              ),
+              // Multi-stop gradient overlay matching Explore Nagaland
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                height: 90,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withValues(alpha: 0.35),
+                        Colors.black.withValues(alpha: 0.88),
+                      ],
+                      stops: const [0.0, 0.45, 1.0],
+                    ),
+                  ),
+                ),
+              ),
+              // Tour Info matching Explore Nagaland
+              Positioned(
+                left: 14,
+                right: 14,
+                bottom: 14,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      trip["title"],
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontFamily: 'Lato',
+                        fontWeight: FontWeight.w800,
+                        fontSize: 18,
+                        color: Colors.white,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black54,
+                            offset: Offset(0, 1),
+                            blurRadius: 2,
                           ),
                         ],
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF20B08D),
-                    side: const BorderSide(color: Color(0xFF20B08D), width: 1.2),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  ),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => TripPlannersScreen(
-                          tourTitle: trip["plannerSubtitle"] ?? trip["title"],
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            trip["subtitle"],
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontFamily: 'Lato',
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                              color: Colors.white70,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black54,
+                                  offset: Offset(0, 1),
+                                  blurRadius: 2,
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
-                    );
-                  },
-                  child: const Text(
-                    'View',
-                    style: TextStyle(
-                      fontFamily: 'Lato',
-                      fontWeight: FontWeight.w800,
-                      fontSize: 14.5,
+                        const SizedBox(width: 8),
+                        const Icon(
+                          Icons.keyboard_double_arrow_right_rounded,
+                          size: 20,
+                          color: Colors.white,
+                        ),
+                      ],
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

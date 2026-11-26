@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../data/nagaland_data.dart';
 import '../../widgets/custom_bottom_bar.dart';
@@ -18,24 +19,28 @@ class DistrictDetailScreen extends StatefulWidget {
 }
 
 class _DistrictDetailScreenState extends State<DistrictDetailScreen> {
-  // Set to track expanded spots
-  final Set<int> _expandedSpots = {};
+  // Track currently expanded spot (single-expansion accordion)
+  int? _expandedSpotIndex;
 
   void _toggleSpot(int index) {
     setState(() {
-      if (_expandedSpots.contains(index)) {
-        _expandedSpots.remove(index);
+      if (_expandedSpotIndex == index) {
+        _expandedSpotIndex = null;
       } else {
-        _expandedSpots.add(index);
+        _expandedSpotIndex = index;
       }
     });
   }
 
-  Future<void> _openGoogleMaps(String spotName) async {
-    final query = Uri.encodeComponent('$spotName, ${widget.district.name}, Nagaland');
-    final uri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$query');
+  Future<void> _openGoogleMaps(TouristSpot spot) async {
+    final customUrl = spot.mapUrl?.trim();
+    final uri = (customUrl != null && customUrl.startsWith('http'))
+        ? Uri.parse(customUrl)
+        : Uri.parse(
+            'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent('${spot.name}, ${widget.district.name}, Nagaland')}',
+          );
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      debugPrint('Could not launch Google Maps for $spotName');
+      debugPrint('Could not launch Google Maps for ${spot.name}');
     }
   }
 
@@ -49,7 +54,10 @@ class _DistrictDetailScreenState extends State<DistrictDetailScreen> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Stack(
+      body: SafeArea(
+        top: false,
+        bottom: true,
+        child: Stack(
         children: [
           // Scrollable Content
           SingleChildScrollView(
@@ -57,18 +65,84 @@ class _DistrictDetailScreenState extends State<DistrictDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. Hero Banner Image
+                // 1. Hero Banner Image with Back Button
                 SizedBox(
                   height: 250 + topInset,
                   width: double.infinity,
-                  child: Image.asset(
-                    district.heroAsset,
-                    fit: BoxFit.cover,
-                    alignment: Alignment.center,
-                    errorBuilder: (_, __, ___) => Container(
-                      height: 250 + topInset,
-                      color: const Color(0xFF003848),
-                    ),
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: (district.heroUrl != null && district.heroUrl!.isNotEmpty)
+                            ? CachedNetworkImage(
+                                imageUrl: district.heroUrl!,
+                                fit: BoxFit.cover,
+                                alignment: Alignment.center,
+                                memCacheWidth: 900,
+                                fadeInDuration: const Duration(milliseconds: 120),
+                                placeholder: (_, __) => Container(
+                                  height: 250 + topInset,
+                                  color: const Color(0xFF003848),
+                                ),
+                                errorWidget: (_, __, ___) => district.heroAsset.isNotEmpty
+                                    ? Image.asset(
+                                        district.heroAsset,
+                                        fit: BoxFit.cover,
+                                        alignment: Alignment.center,
+                                        errorBuilder: (_, __, ___) => Container(
+                                          height: 250 + topInset,
+                                          color: const Color(0xFF003848),
+                                        ),
+                                      )
+                                    : Container(
+                                        height: 250 + topInset,
+                                        color: const Color(0xFF003848),
+                                      ),
+                              )
+                            : Image.asset(
+                                district.heroAsset,
+                                fit: BoxFit.cover,
+                                alignment: Alignment.center,
+                                errorBuilder: (_, __, ___) => Container(
+                                  height: 250 + topInset,
+                                  color: const Color(0xFF003848),
+                                ),
+                              ),
+                      ),
+                      // Circular Back Button `<` anchored to the Hero Banner
+                      Positioned(
+                        top: topInset + 12,
+                        left: 16,
+                        child: GestureDetector(
+                          onTap: widget.onBack ??
+                              () {
+                                if (Navigator.canPop(context)) {
+                                  Navigator.pop(context);
+                                }
+                              },
+                          child: Container(
+                            height: 42,
+                            width: 42,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.16),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            alignment: Alignment.center,
+                            child: const Icon(
+                              Icons.chevron_left_rounded,
+                              color: Color(0xFF003848),
+                              size: 26,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
 
@@ -98,19 +172,7 @@ class _DistrictDetailScreenState extends State<DistrictDetailScreen> {
                             letterSpacing: -0.3,
                           ),
                         ),
-                        const SizedBox(height: 4),
-
-                        // Subtitle
-                        Text(
-                          district.spotsCountText,
-                          style: const TextStyle(
-                            fontFamily: 'Lato',
-                            fontSize: 14,
-                            color: Color(0xFF334155),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 8),
 
                         // Thin Divider
                         const Divider(
@@ -121,47 +183,42 @@ class _DistrictDetailScreenState extends State<DistrictDetailScreen> {
                         const SizedBox(height: 8),
 
                         // Section: Details
-                        const Text(
-                          'Details',
-                          style: TextStyle(
-                            fontFamily: 'Lato',
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                            color: Color(0xFF0F172A),
+                        if (district.resolvedDetails.isNotEmpty) ...[
+                          const Text(
+                            'Details',
+                            style: TextStyle(
+                              fontFamily: 'Lato',
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF0F172A),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 18),
+                          const SizedBox(height: 18),
 
-                        // 3 Columns: Distance, Transport, Stay
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            _buildDetailItem(
-                              iconAsset: 'assets/images/icon_distance_clean.png',
-                              fallbackIcon: Icons.near_me_outlined,
-                              title: district.distanceInfo,
-                            ),
-                            _buildDetailItem(
-                              iconAsset: 'assets/images/icon_bus_clean.png',
-                              fallbackIcon: Icons.directions_bus_outlined,
-                              title: district.transportInfo,
-                            ),
-                            _buildDetailItem(
-                              iconAsset: 'assets/images/icon_stay_clean.png',
-                              fallbackIcon: Icons.hotel_outlined,
-                              title: district.stayInfo,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
+                          // Dynamic Details Row from Firestore `details` array
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: district.resolvedDetails
+                                .map(
+                                  (detail) => Expanded(
+                                    child: _buildDetailItem(
+                                      iconName: detail.icon,
+                                      title: detail.text,
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                          const SizedBox(height: 14),
 
-                        // Thin Divider
-                        const Divider(
-                          color: Color(0xFFF1F5F9),
-                          height: 24,
-                          thickness: 1,
-                        ),
-                        const SizedBox(height: 8),
+                          // Thin Divider
+                          const Divider(
+                            color: Color(0xFFF1F5F9),
+                            height: 24,
+                            thickness: 1,
+                          ),
+                          const SizedBox(height: 8),
+                        ],
 
                         // Section: Tourist Spots
                         const Text(
@@ -185,7 +242,7 @@ class _DistrictDetailScreenState extends State<DistrictDetailScreen> {
                               const SizedBox(height: 14),
                           itemBuilder: (context, index) {
                             final spot = district.spots[index];
-                            final isExpanded = _expandedSpots.contains(index);
+                            final isExpanded = _expandedSpotIndex == index;
 
                             return _buildSpotAccordion(
                               index: index + 1,
@@ -203,42 +260,7 @@ class _DistrictDetailScreenState extends State<DistrictDetailScreen> {
             ),
           ),
 
-          // 3. Floating Circular Back Button `<`
-          Positioned(
-            top: topInset + 12,
-            left: 16,
-            child: GestureDetector(
-              onTap: widget.onBack ??
-                  () {
-                    if (Navigator.canPop(context)) {
-                      Navigator.pop(context);
-                    }
-                  },
-              child: Container(
-                height: 42,
-                width: 42,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.16),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                alignment: Alignment.center,
-                child: const Icon(
-                  Icons.chevron_left_rounded,
-                  color: Color(0xFF003848),
-                  size: 26,
-                ),
-              ),
-            ),
-          ),
-
-          // 4. Custom Bottom Navigation Bar
+          // Custom Bottom Navigation Bar
           CustomBottomBar(
             currentIndex: 3, // Nagaland tab active as seen in screenshots
             onTap: (index) {
@@ -249,28 +271,69 @@ class _DistrictDetailScreenState extends State<DistrictDetailScreen> {
           ),
         ],
       ),
-    );
+    ),
+  );
+  }
+
+  IconData _resolveDetailIcon(String iconName) {
+    switch (iconName.trim().toLowerCase()) {
+      case 'distance':
+      case 'near_me':
+      case 'directions_car':
+      case 'car':
+        return Icons.near_me_outlined;
+      case 'bus':
+      case 'transport':
+      case 'directions_bus':
+        return Icons.directions_bus_outlined;
+      case 'flight':
+      case 'airport':
+        return Icons.flight_outlined;
+      case 'train':
+        return Icons.train_outlined;
+      case 'stay':
+      case 'hotel':
+      case 'home':
+      case 'homestay':
+        return Icons.hotel_outlined;
+      case 'time':
+      case 'timing':
+      case 'schedule':
+        return Icons.schedule_outlined;
+      case 'location':
+      case 'map':
+      case 'pin':
+        return Icons.location_on_outlined;
+      default:
+        return Icons.info_outline_rounded;
+    }
   }
 
   Widget _buildDetailItem({
-    required String iconAsset,
-    required IconData fallbackIcon,
+    required String iconName,
     required String title,
   }) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Image.asset(
-          iconAsset,
-          height: 28,
-          width: 32,
-          fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => Icon(
-            fallbackIcon,
-            size: 28,
-            color: const Color(0xFF20B08D),
-          ),
-        ),
+        iconName.startsWith('http')
+            ? CachedNetworkImage(
+                imageUrl: iconName,
+                height: 28,
+                width: 32,
+                fit: BoxFit.contain,
+                memCacheWidth: 96,
+                errorWidget: (_, __, ___) => const Icon(
+                  Icons.info_outline_rounded,
+                  size: 28,
+                  color: Color(0xFF20B08D),
+                ),
+              )
+            : Icon(
+                _resolveDetailIcon(iconName),
+                size: 28,
+                color: const Color(0xFF20B08D),
+              ),
         const SizedBox(height: 8),
         Text(
           title,
@@ -369,13 +432,13 @@ class _DistrictDetailScreenState extends State<DistrictDetailScreen> {
                       ),
                     ),
 
-                    // Trailing Chevron Icon (Chevron Up when expanded, Double Chevron Down when collapsed)
+                    // Trailing Chevron Icon (Double Chevron Up when expanded, Double Chevron Down when collapsed)
                     Icon(
                       isExpanded
-                          ? Icons.keyboard_arrow_up_rounded
+                          ? Icons.keyboard_double_arrow_up_rounded
                           : Icons.keyboard_double_arrow_down_rounded,
                       color: const Color(0xFF003848),
-                      size: isExpanded ? 24 : 22,
+                      size: 22,
                     ),
                   ],
                 ),
@@ -389,26 +452,68 @@ class _DistrictDetailScreenState extends State<DistrictDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Spot Photo (if available)
-                    if (spot.imageAsset != null && spot.imageAsset!.isNotEmpty) ...[
+                    // Spot Photo (if available — supports both remote imageUrl & local imageAsset)
+                    if ((spot.imageUrl != null && spot.imageUrl!.isNotEmpty) ||
+                        (spot.imageAsset != null && spot.imageAsset!.isNotEmpty)) ...[
                       ClipRRect(
                         borderRadius: BorderRadius.circular(14),
-                        child: Image.asset(
-                          spot.imageAsset!,
-                          height: 185,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            height: 185,
-                            color: const Color(0xFFF1F5F9),
-                            alignment: Alignment.center,
-                            child: const Icon(
-                              Icons.image_outlined,
-                              size: 32,
-                              color: Color(0xFF94A3B8),
-                            ),
-                          ),
-                        ),
+                        child: (spot.imageUrl != null && spot.imageUrl!.isNotEmpty)
+                            ? CachedNetworkImage(
+                                imageUrl: spot.imageUrl!,
+                                height: 185,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                memCacheWidth: 800,
+                                fadeInDuration: const Duration(milliseconds: 120),
+                                placeholder: (_, __) => Container(
+                                  height: 185,
+                                  color: const Color(0xFFF1F5F9),
+                                ),
+                                errorWidget: (_, __, ___) =>
+                                    (spot.imageAsset != null && spot.imageAsset!.isNotEmpty)
+                                        ? Image.asset(
+                                            spot.imageAsset!,
+                                            height: 185,
+                                            width: double.infinity,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) => Container(
+                                              height: 185,
+                                              color: const Color(0xFFF1F5F9),
+                                              alignment: Alignment.center,
+                                              child: const Icon(
+                                                Icons.image_outlined,
+                                                size: 32,
+                                                color: Color(0xFF94A3B8),
+                                              ),
+                                            ),
+                                          )
+                                        : Container(
+                                            height: 185,
+                                            color: const Color(0xFFF1F5F9),
+                                            alignment: Alignment.center,
+                                            child: const Icon(
+                                              Icons.image_outlined,
+                                              size: 32,
+                                              color: Color(0xFF94A3B8),
+                                            ),
+                                          ),
+                              )
+                            : Image.asset(
+                                spot.imageAsset!,
+                                height: 185,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
+                                  height: 185,
+                                  color: const Color(0xFFF1F5F9),
+                                  alignment: Alignment.center,
+                                  child: const Icon(
+                                    Icons.image_outlined,
+                                    size: 32,
+                                    color: Color(0xFF94A3B8),
+                                  ),
+                                ),
+                              ),
                       ),
                       const SizedBox(height: 14),
                     ],
@@ -428,7 +533,7 @@ class _DistrictDetailScreenState extends State<DistrictDetailScreen> {
 
                     // Open in Google Maps Button
                     GestureDetector(
-                      onTap: () => _openGoogleMaps(spot.name),
+                      onTap: () => _openGoogleMaps(spot),
                       child: Container(
                         width: double.infinity,
                         height: 44,

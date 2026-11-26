@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
+import '../services/firebase_service.dart';
 
 class MockUser extends ChangeNotifier {
   static final MockUser _instance = MockUser._internal();
@@ -117,6 +118,25 @@ class MockUser extends ChangeNotifier {
     } catch (e) {
       debugPrint("Error clearing session: $e");
     }
+  }
+
+  /// Deletes the user profile remotely in Firestore and clears local device session.
+  /// Complies with Apple Store (5.1.1(v)) and Google Play account deletion policies.
+  Future<bool> deleteAccount() async {
+    final uid = _userId;
+    final email = _email;
+    bool remoteDeleted = true;
+    if (uid.isNotEmpty || email.isNotEmpty) {
+      try {
+        final fb = FirebaseService();
+        remoteDeleted = await fb.deleteUserAccount(uid, userEmail: email);
+      } catch (e) {
+        debugPrint("Error deleting remote account in MockUser: $e");
+        remoteDeleted = false;
+      }
+    }
+    await logout();
+    return remoteDeleted;
   }
 
   bool hasVoted(String submissionId) => _votedSubmissions.contains(submissionId);

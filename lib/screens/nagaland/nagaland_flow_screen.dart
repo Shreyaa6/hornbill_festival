@@ -3,7 +3,7 @@ import '../../data/nagaland_data.dart';
 import 'nagaland_home_screen.dart';
 import 'district_detail_screen.dart';
 
-class NagalandFlowScreen extends StatefulWidget {
+class NagalandFlowScreen extends StatelessWidget {
   final ValueChanged<bool>? onHeaderVisibilityChanged;
 
   const NagalandFlowScreen({
@@ -11,49 +11,23 @@ class NagalandFlowScreen extends StatefulWidget {
     this.onHeaderVisibilityChanged,
   });
 
-  @override
-  State<NagalandFlowScreen> createState() => NagalandFlowScreenState();
-}
-
-class NagalandFlowScreenState extends State<NagalandFlowScreen> {
-  DistrictInfo? _selectedDistrict;
-
-  void selectDistrict(DistrictInfo district) {
-    setState(() {
-      _selectedDistrict = district;
-    });
-    widget.onHeaderVisibilityChanged?.call(false);
-  }
-
-  void goBackToHome() {
-    setState(() {
-      _selectedDistrict = null;
-    });
-    widget.onHeaderVisibilityChanged?.call(true);
+  void _selectDistrict(BuildContext context, DistrictInfo district) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DistrictDetailScreen(
+          district: district,
+          onBack: () => Navigator.pop(context),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: _selectedDistrict == null,
-      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop && _selectedDistrict != null) {
-          goBackToHome();
-        }
-      },
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 200),
-        child: _selectedDistrict == null
-            ? NagalandHomeScreen(
-                key: const ValueKey('nagaland_home_view'),
-                onSelectDistrict: selectDistrict,
-              )
-            : DistrictDetailScreen(
-                key: ValueKey('district_detail_${_selectedDistrict!.id}'),
-                district: _selectedDistrict!,
-                onBack: goBackToHome,
-              ),
-      ),
+    return NagalandHomeScreen(
+      key: const ValueKey('nagaland_home_view'),
+      onSelectDistrict: (district) => _selectDistrict(context, district),
     );
   }
 }

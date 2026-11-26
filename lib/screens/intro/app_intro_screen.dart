@@ -1,22 +1,135 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../theme/app_theme.dart';
+import '../../data/mock_user.dart';
+import '../../services/firebase_service.dart';
+import '../auth/login_screen.dart';
+import '../main_navigation_screen.dart';
 
 class AppIntroScreen extends StatefulWidget {
-  final VoidCallback onFinish;
+  final VoidCallback? onFinish;
 
-  const AppIntroScreen({super.key, required this.onFinish});
+  const AppIntroScreen({super.key, this.onFinish});
 
   @override
   State<AppIntroScreen> createState() => _AppIntroScreenState();
 }
 
 class _AppIntroScreenState extends State<AppIntroScreen> {
-  bool _showDisclaimer = true;
+  bool _showDisclaimer = false;
 
-  void _dismissDisclaimer() {
+  @override
+  void initState() {
+    super.initState();
+    _checkDisclaimerRequirement();
+  }
+
+  Future<void> _checkDisclaimerRequirement() async {
+    // Only show disclaimer when user is NOT signed in
+    final user = MockUser();
+    if (user.isLoggedIn) {
+      if (mounted) setState(() => _showDisclaimer = false);
+      return;
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final alreadyDismissed = prefs.getBool('disclaimer_acknowledged') ?? false;
+      if (!alreadyDismissed && mounted) {
+        setState(() => _showDisclaimer = true);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _showDisclaimer = true);
+    }
+  }
+
+  void _dismissDisclaimer() async {
     setState(() {
       _showDisclaimer = false;
     });
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('disclaimer_acknowledged', true);
+    } catch (_) {}
+  }
+
+  static const String _defaultPlayStoreUrl =
+      'https://play.google.com/store/apps/details?id=hornbill.services.nagaland';
+  static const String _defaultAppStoreUrl =
+      'https://apps.apple.com/in/app/hornbill-services/id6738601371';
+
+  Future<void> _openHornbillServices() async {
+    String url = '';
+    final isIOS = defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.macOS;
+
+    try {
+      final doc = await FirebaseService()
+          .firestore
+          .collection('app_config_services')
+          .doc('version_control')
+          .get();
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data()!;
+        if (isIOS) {
+          url = data['app_store_url']?.toString().trim() ?? '';
+        } else {
+          url = data['play_store_url']?.toString().trim() ?? '';
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching version_control for Hornbill Services: $e');
+    }
+
+    if (url.isEmpty) {
+      url = isIOS ? _defaultAppStoreUrl : _defaultPlayStoreUrl;
+    }
+
+    if (!isIOS) {
+      final marketUri =
+          Uri.parse('market://details?id=hornbill.services.nagaland');
+      try {
+        if (await canLaunchUrl(marketUri)) {
+          await launchUrl(marketUri, mode: LaunchMode.externalApplication);
+          return;
+        }
+      } catch (_) {}
+    }
+
+    final targetUri = Uri.parse(url);
+    try {
+      if (await canLaunchUrl(targetUri)) {
+        await launchUrl(targetUri, mode: LaunchMode.externalApplication);
+      } else {
+        await launchUrl(targetUri, mode: LaunchMode.platformDefault);
+      }
+    } catch (e) {
+      debugPrint('Could not launch store URL: $e');
+    }
+  }
+
+  void _handleGetStarted() {
+    if (widget.onFinish != null) {
+      widget.onFinish!();
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LoginScreen(
+          onLoginSuccess: () {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
+              (route) => false,
+            );
+          },
+        ),
+      ),
+    );
   }
 
   @override
@@ -49,7 +162,7 @@ class _AppIntroScreenState extends State<AppIntroScreen> {
                   Align(
                     alignment: Alignment.topRight,
                     child: GestureDetector(
-                      onTap: widget.onFinish,
+                      onTap: _handleGetStarted,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 8),
@@ -125,7 +238,7 @@ class _AppIntroScreenState extends State<AppIntroScreen> {
                           borderRadius: BorderRadius.circular(15),
                         ),
                       ),
-                      onPressed: widget.onFinish,
+                      onPressed: _handleGetStarted,
                       child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -157,14 +270,7 @@ class _AppIntroScreenState extends State<AppIntroScreen> {
                         ),
                       ),
                       GestureDetector(
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Hornbill Services portal opening soon'),
-                              duration: Duration(seconds: 2),
-                            ),
-                          );
-                        },
+                        onTap: _openHornbillServices,
                         child: const Text(
                           'Download Hornbill Services',
                           style: TextStyle(
@@ -172,7 +278,6 @@ class _AppIntroScreenState extends State<AppIntroScreen> {
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
                             color: AppColors.primary,
-                            decoration: TextDecoration.underline,
                           ),
                         ),
                       ),

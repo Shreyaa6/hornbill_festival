@@ -1,31 +1,85 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../services/firebase_service.dart';
 
-class CalendarEvent {
-  final String title;
-  final String month;
-  final String days;
-  final String year;
-  final Color monthColor;
-  final bool isConfirmed;
+class TribalFestival {
+  final int id;
+  final String docId;
   final String tribe;
-  final String tribeShort;
-  final String location;
-  final String dateRange;
+  final String festivalName;
+  final String localAsset;
+  final String networkUrl;
   final String description;
 
-  const CalendarEvent({
-    required this.title,
-    required this.month,
-    required this.days,
-    required this.year,
-    required this.monthColor,
-    required this.isConfirmed,
+  const TribalFestival({
+    required this.id,
+    this.docId = '',
     required this.tribe,
-    required this.tribeShort,
-    required this.location,
-    required this.dateRange,
+    required this.festivalName,
+    required this.localAsset,
+    required this.networkUrl,
     required this.description,
   });
+
+  factory TribalFestival.fromMap(Map<String, dynamic> map, [int fallbackId = 1]) {
+    final rawSerial = map['serialno'] ?? map['serialNo'] ?? map['serial_no'] ?? map['id'];
+    int parsedId;
+    if (rawSerial is num) {
+      parsedId = rawSerial.toInt();
+    } else {
+      parsedId = int.tryParse(rawSerial?.toString() ?? '') ?? fallbackId;
+    }
+
+    final tribe = (map['tribeName'] ?? map['tribe_name'] ?? map['tribe'] ?? '').toString();
+    final festivalName = (map['festivalName'] ?? map['festival_name'] ?? map['name'] ?? map['title'] ?? '').toString();
+    final description = (map['description'] ?? map['desc'] ?? map['details'] ?? '').toString();
+    final imageUrl = (map['image'] ?? map['photo'] ?? map['networkUrl'] ?? map['url'] ?? '').toString();
+    final docId = (map['docId'] ?? map['id'] ?? '').toString();
+
+    final localAsset = _resolveLocalAsset(parsedId, tribe);
+
+    return TribalFestival(
+      id: parsedId,
+      docId: docId,
+      tribe: tribe,
+      festivalName: festivalName,
+      localAsset: localAsset,
+      networkUrl: imageUrl,
+      description: description,
+    );
+  }
+
+  static String _resolveLocalAsset(int id, String tribeName) {
+    final cleanTribe = tribeName.toLowerCase().trim();
+    if (cleanTribe.contains('angami')) return 'assets/images/tribes/1_angami.webp';
+    if (cleanTribe.contains('ao')) return 'assets/images/tribes/2_ao.webp';
+    if (cleanTribe.contains('chakhesang')) return 'assets/images/tribes/3_chakhesang.webp';
+    if (cleanTribe.contains('chang')) return 'assets/images/tribes/4_chang.webp';
+    if (cleanTribe.contains('garo')) return 'assets/images/tribes/5_garo.webp';
+    if (cleanTribe.contains('kachari')) return 'assets/images/tribes/6_kachari.webp';
+    if (cleanTribe.contains('khiamniungan')) return 'assets/images/tribes/7_khiamniungan.webp';
+    if (cleanTribe.contains('konyak')) return 'assets/images/tribes/8_konyak.webp';
+    if (cleanTribe.contains('kuki')) return 'assets/images/tribes/9_kuki.webp';
+    if (cleanTribe.contains('lotha')) return 'assets/images/tribes/10_lotha.webp';
+    if (cleanTribe.contains('phom')) return 'assets/images/tribes/11_phom.webp';
+    if (cleanTribe.contains('pochury')) return 'assets/images/tribes/12_pochury.webp';
+    if (cleanTribe.contains('rengma')) return 'assets/images/tribes/13_rengma.webp';
+    if (cleanTribe.contains('sangtam')) return 'assets/images/tribes/14_sangtam.webp';
+    if (cleanTribe.contains('sumi')) return 'assets/images/tribes/15_sumi.webp';
+    if (cleanTribe.contains('tikhir')) return 'assets/images/tribes/16_tikhir.webp';
+    if (cleanTribe.contains('yimkhiung')) return 'assets/images/tribes/17_yimkhiung.webp';
+    if (cleanTribe.contains('zeliang')) return 'assets/images/tribes/18_zeliang.webp';
+    if (id >= 1 && id <= 18) {
+      const tribeNames = [
+        'angami', 'ao', 'chakhesang', 'chang', 'garo', 'kachari',
+        'khiamniungan', 'konyak', 'kuki', 'lotha', 'phom', 'pochury',
+        'rengma', 'sangtam', 'sumi', 'tikhir', 'yimkhiung', 'zeliang'
+      ];
+      return 'assets/images/tribes/${id}_${tribeNames[id - 1]}.webp';
+    }
+    return 'assets/images/festivals_top_hero.png';
+  }
 }
 
 class FestivalsScreen extends StatefulWidget {
@@ -38,1266 +92,569 @@ class FestivalsScreen extends StatefulWidget {
 }
 
 class _FestivalsScreenState extends State<FestivalsScreen> {
-  final TextEditingController _searchController = TextEditingController();
-  int _selectedFilterIndex = 0; // 0: All Events, 1: 2026 Schedule, 2: 2027 Festivals
+  // Currently expanded festival ID (single-expansion accordion). Angami (#1) is expanded initially by default.
+  int? _expandedId = 1;
 
-  final List<CalendarEvent> _allEvents = const [
-    // OCTOBER 2026
-    CalendarEvent(
-      title: 'Tsonglak-Nyi',
-      month: 'OCT',
-      days: '9-12',
-      year: '2026',
-      monthColor: Color(0xFF20B08D),
-      isConfirmed: true,
-      tribe: 'Tikhir Tribe',
-      tribeShort: 'Tikhir',
-      location: 'Tikhir Areas',
-      dateRange: '9 to 12 October 2026',
+  static const List<TribalFestival> _defaultFestivals = [
+    TribalFestival(
+      id: 1,
+      tribe: 'Angami',
+      festivalName: 'Sekrenyi Festival',
+      localAsset: 'assets/images/tribes/1_angami.webp',
+      networkUrl:
+          'https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/festivals%2FAngami.png?alt=media&token=f125e913-19c8-4ed3-b44e-af54921313a2',
       description:
-          'Tsonglak-Nyi is the premier harvest and thanksgiving festival of the Tikhir tribe, celebrated with traditional songs, cultural dances, rituals of unity, and invoking blessings for bountiful harvests and peace.',
+          'Sekrenyi (or Phousanyi) is the main festival of the Angami Naga community, celebrated in December by Southern Angamis and in February by Western and Northern Angamis, with a common date of February 25th. It marks the beginning of the lunar year and is a time for prayer, purification, and renewal of body and soul.\n\nTraditionally, it celebrates the transition from boyhood to adulthood, especially for young men. The festival includes feasting, singing, and cultural displays, with key rituals like Kizie, Zumho, and Dzuseva for purification. Participants wear new shawls, and activities like hunting, gate-pulling, and inter-village ceremonies occur later in the festival, with villagers abstaining from agricultural work.',
     ),
-    CalendarEvent(
-      title: 'Chega Gadi',
-      month: 'OCT',
-      days: '30-31',
-      year: '2026',
-      monthColor: Color(0xFF0284C7),
-      isConfirmed: true,
-      tribe: 'Zeliang Tribe',
-      tribeShort: 'Zeliang',
-      location: 'Peren District and Zeliang Areas',
-      dateRange: '30 to 31 October 2026',
+    TribalFestival(
+      id: 2,
+      tribe: 'Ao',
+      festivalName: 'Moatsü Festival',
+      localAsset: 'assets/images/tribes/2_ao.webp',
+      networkUrl:
+          'https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/festivals%2FAo.png?alt=media&token=3add0a8c-e73b-47fd-a320-986298faf51b',
       description:
-          'Chega Gadi is an important traditional festival of the Zeliang community celebrated with feasting, purification rituals, and community games before the harvest.',
+          'Moatsü is an annual festival celebrated by the Ao Naga tribes of Nagaland in the first week of May. It marks the end of the sowing season and hopes for a bountiful harvest. The festival features communal feasts, traditional sports, cultural performances, and bonfires. Rituals include repairs and construction of houses by elders of the Putu Menden (Village Council), ploughing of old and new Jhum Kheti, and cleaning the Tzübu (water wells). Moatsü fosters community bonding and provides an opportunity for villagers to come together and celebrate their cultural identity.',
     ),
-
-    // NOVEMBER 2026
-    CalendarEvent(
-      title: 'Chavang Kut',
-      month: 'NOV',
-      days: '1',
-      year: '2026',
-      monthColor: Color(0xFFD97706),
-      isConfirmed: true,
-      tribe: 'Kuki Tribe',
-      tribeShort: 'Kuki',
-      location: 'Kuki settlements, including Peren D...',
-      dateRange: '1 November 2026',
+    TribalFestival(
+      id: 3,
+      tribe: 'Chakhesang',
+      festivalName: 'Thuni Festival',
+      localAsset: 'assets/images/tribes/3_chakhesang.webp',
+      networkUrl:
+          'https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/festivals%2FChakesang.png?alt=media&token=e9c9aaff-85b1-45f3-aef0-ef20b1ab4930',
       description:
-          'Chavang Kut is an autumn post-harvest festival celebrated by the Kuki community, marked by songs, dances, and sharing food in gratitude for a bountiful harvest.',
+          'Thuni is the primary festival of the Poumai Chakhesang people from the Razeba area, celebrated on January 5th each year. The name "Thuni" combines "Thu" (new) and "ni" (festival), symbolizing new beginnings. Rituals include pushing down a large pile of firewood (Sükho) and using traditional fire-making methods (Mila) to create a bonfire, reflecting values of peace, purity, and equality.\n\nDuring the festival, couples participate in the Feast of Merit, expressing gratitude for their prosperity. They are honored with prestigious shawls like the “Hapidasa” and “Saparadu” and decorate homes with traditional items such as “kike” and “hapiteh”.',
     ),
-    CalendarEvent(
-      title: 'Tokhu Emong',
-      month: 'NOV',
-      days: '6-7',
-      year: '2026',
-      monthColor: Color(0xFFE11D48),
-      isConfirmed: true,
-      tribe: 'Lotha Tribe',
-      tribeShort: 'Lotha',
-      location: 'Wokha District',
-      dateRange: '6 to 7 November 2026',
+    TribalFestival(
+      id: 4,
+      tribe: 'Chang',
+      festivalName: 'Naknyulüm Festival',
+      localAsset: 'assets/images/tribes/4_chang.webp',
+      networkUrl:
+          'https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/festivals%2FChang.png?alt=media&token=b97dd2a9-6b4e-4857-812a-fa73016cbaa8',
       description:
-          'Tokhu Emong is the premier post-harvest festival of the Lothas. It is a festival of thanksgiving, forgiveness, and renewal of ties, with traditional songs and community feasts.',
+          'Naknyu, meaning "Mother of Darkness," is a festival celebrated by the Chang people to mark the victory of light over darkness. It takes place during "Daomao," when the moon is fully concealed, symbolizing six days and nights of darkness. The festival, celebrated with joy and enthusiasm, lasts for three days, each with its own significance.\n\nOn the first day, called "Wenshi," women grind pearl millet into flour and make steamed biscuits, while men collect a scented plant, "Ngounam," to ward off evil.\n\nThe second day, "Youjem," involves sharing cooked meat and steamed biscuits, playing games like top spinning for men and box bean display for women. Women also play the bamboo flute "Kongkin," and there\'s a meat-eating competition.\n\nThe third day, "Nakseeng," concludes with clearing pavements and paths around the village, and men gather to clear the paths to the fields.',
     ),
-    CalendarEvent(
-      title: 'Ahuna',
-      month: 'NOV',
-      days: '14-15',
-      year: '2026',
-      monthColor: Color(0xFF7C3AED),
-      isConfirmed: true,
-      tribe: 'Sumi Tribe',
-      tribeShort: 'Sumi',
-      location: 'Zunheboto and Sumi Areas',
-      dateRange: '14 to 15 November 2026',
+    TribalFestival(
+      id: 5,
+      tribe: 'Garo',
+      festivalName: 'Wangala Festival',
+      localAsset: 'assets/images/tribes/5_garo.webp',
+      networkUrl:
+          'https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/festivals%2FGaro.png?alt=media&token=e0353772-d8da-4f2d-a786-85fdedaf1aa5',
       description:
-          'Ahuna is the post-harvest festival of the Sumi Nagas, celebrating the harvest of first crops cooked in freshly cut bamboo stalks accompanied by traditional rituals.',
+          'Wangala is a post-harvest festival celebrated by the Garo tribe of Nagaland on November 21st to honor Misi Saljong, the sun god of fertility, for a bountiful harvest. The festival lasts 2-3 days and features sports, food, and cultural performances, preserving the Garo heritage and connecting younger generations to their roots.\n\nParticipants wear colorful garments and feathered headgear while dancing to the rhythm of long drums. The Garo people first offer thanks to Misi Saljong before consuming their crops. The festival includes traditional dances like Wangala and Rugala, as well as indigenous games such as tug-of-war, stone lifting, wrestling, and bamboo pole pushing.\n\nOn the first day, rituals like pouring rice beer (Rugala) and incense burning (Sa\'sat So\'a) are performed by the priest, followed by dancing, gongs, and celebrations.',
     ),
-    CalendarEvent(
-      title: 'Wangala',
-      month: 'NOV',
-      days: '21',
-      year: '2026',
-      monthColor: Color(0xFF059669),
-      isConfirmed: true,
-      tribe: 'Garo Tribe',
-      tribeShort: 'Garo',
-      location: 'Dimapur',
-      dateRange: '21 November 2026',
+    TribalFestival(
+      id: 6,
+      tribe: 'Kachari',
+      festivalName: 'Bishu Dima Festival',
+      localAsset: 'assets/images/tribes/6_kachari.webp',
+      networkUrl:
+          'https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/festivals%2FKachari.png?alt=media&token=6ba5d4bb-4e3f-42e5-aeb1-0fb853386ec9',
       description:
-          'Wangala is the post-harvest festival of the Garos, also known as the 100 Drums Festival, offering prayers and thanksgiving to Misi Saljong, the deity of fertility.',
+          'The Bishu Festival of the Dimasa Kachari is a post-harvest celebration, marking the end of the harvest season when food grains are thrashed and stored for the year. The festival is celebrated in three forms:\n\n1. Hangseu Bishu, a seven-day celebration\n2. Suren Bishu, a three-day celebration\n3. Jitab, a one-day festival\n\nDuring these festivities, traditional dances, flute playing (Muri), singing, and games are held, celebrating the community\'s harvest and cultural heritage.',
     ),
-    CalendarEvent(
-      title: 'Ngada',
-      month: 'NOV',
-      days: '27-28',
-      year: '2026',
-      monthColor: Color(0xFFEA580C),
-      isConfirmed: true,
-      tribe: 'Rengma Tribe',
-      tribeShort: 'Rengma',
-      location: 'Tseminyu District',
-      dateRange: '27 to 28 November 2026',
+    TribalFestival(
+      id: 7,
+      tribe: 'Khiamniungan',
+      festivalName: 'Tsokum Festival',
+      localAsset: 'assets/images/tribes/7_khiamniungan.webp',
+      networkUrl:
+          'https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/festivals%2FKhiamniungan.png?alt=media&token=ff4c67ad-aeb9-4ee7-99df-cb2db92d8e40',
       description:
-          'Ngada is the premier post-harvest festival of the Rengmas celebrated over several days with peace agreements, cleaning the village, feasting, and folk dances.',
+          'Tsokum, celebrated by the Khiamniungan Naga in October during the full moon, is the "festival of festivals" marking the harvest of new Jhum fields. The eight-day festival plays a key role in the community\'s socio-religious life. Harvesting is prohibited until the festival ends, ensuring prayers for prosperity, good health, and communal wellbeing are effective. Wealthy families slaughter buffalo or mithun for a feast of merit. Rituals are performed in the fields, followed by communal meals with pork, beef, and rice beer shared among relatives and neighbors. Tsokum symbolizes unity, cultural heritage, and agricultural prosperity, while invoking blessings for both people and livestock. After the festival, eligible young men may seek a bride.',
     ),
-
-    // DECEMBER 2026
-    CalendarEvent(
-      title: 'Hornbill Festival',
-      month: 'DEC',
-      days: '1-10',
-      year: '2026',
-      monthColor: Color(0xFFDC2626),
-      isConfirmed: true,
-      tribe: 'All Naga tribes Tribe',
-      tribeShort: 'All Naga tribes',
-      location: 'Naga Heritage Village, Kisama, near...',
-      dateRange: '1 to 10 December 2026',
+    TribalFestival(
+      id: 8,
+      tribe: 'Konyak',
+      festivalName: 'Aoleang Festival',
+      localAsset: 'assets/images/tribes/8_konyak.webp',
+      networkUrl:
+          'https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/festivals%2FKonyak.png?alt=media&token=8e932375-d8cf-4876-b9b4-3a7ee2ec8fa6',
       description:
-          'The Festival of Festivals showcasing the rich, vibrant cultural heritage, folk music, warrior dances, crafts, cuisines, and traditions of all indigenous tribes of Nagaland.',
+          'The Aoleang Festival, celebrated by the Konyak Nagas of Nagaland in April, marks the end of the old year and the arrival of spring, with prayers for a bountiful harvest. The six-day festival has distinct events:\n\n1. Hoi Lai Yah Nyih (Preparation Day): The community prepares by gathering firewood, food, and rice beer. The head of the family sacrifices a chicken for blessings.\n2. Yin Mok Pho Nyih (Animal Tethering Day): Domestic animals are captured for sacrifice, and young boys participate in symbolic "head-hunting" rituals.\n3. Yin Mok Shek Nyih (Animal Sacrifice Day): The festival begins with the hoisting of a bamboo flag, followed by animal sacrifices and feasts.\n4. Lingnyu Nyih (Feasting and Dancing Day): People wear traditional clothes, feast, dance, and sing, while men teach young boys head-hunting skills.\n5. Lingha Nyih (Honoring Day): Young people honor the elderly, visit ancestors\' graves, and exchange food with family and friends.\n6. Lingshan Nyih (Cleaning Day): The final day is spent cleaning homes and the village, concluding the festival.\n\nThrough Aoleang, the Konyak Nagas celebrate their culture and seek blessings for prosperity in the coming year.',
     ),
-
-    // JANUARY 2027
-    CalendarEvent(
-      title: 'Sukrunye',
-      month: 'JAN',
-      days: '15',
-      year: '2027',
-      monthColor: Color(0xFF0284C7),
-      isConfirmed: false,
-      tribe: 'Chakhesang Tribe',
-      tribeShort: 'Chakhesang',
-      location: 'Phek District and Chakhesang Areas',
-      dateRange: '15 January 2027',
+    TribalFestival(
+      id: 9,
+      tribe: 'Kuki',
+      festivalName: 'Mim Kut & Chavang Kut',
+      localAsset: 'assets/images/tribes/9_kuki.webp',
+      networkUrl:
+          'https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/festivals%2FKuki.png?alt=media&token=e754f8ae-491d-4ff7-9164-a4e639d03084',
       description:
-          'Sukrunye is the main festival of the Chakhesangs, celebrated to purify the youth, sanctify village households, and seek divine blessings for health and prosperity.',
+          'The Kukis have a rich cultural heritage, with life itself. They celebrate two major festivals: Mim Kut and Chavang Kut. Kuki folk songs vividly tell the tales of their warriors, heroines, and epic events, embodying eternal romance and cultural pride.\n\nMim Kut, celebrated on January 17th, is a post-harvest festival marking the final crop harvest of "MIM" (Job\'s Tears). The Thempu (priest) performs rituals, sacrifices fowls, and thanks Chung Pathen (the supernatural god) for the bountiful harvest.\n\nChavang Kut, observed on November 1st, marks the end of the harvest season. The Thempu offers prayers to the deities for a good harvest, distributes JU (rice beer), and the community celebrates with dancing, singing folklores, traditional games, and feasting.',
     ),
-    CalendarEvent(
-      title: 'Mimkut',
-      month: 'JAN',
-      days: '17',
-      year: '2027',
-      monthColor: Color(0xFFD97706),
-      isConfirmed: false,
-      tribe: 'Kuki Tribe',
-      tribeShort: 'Kuki',
-      location: 'Athibung, Peren District, and Kuki s...',
-      dateRange: '17 January 2027',
+    TribalFestival(
+      id: 10,
+      tribe: 'Lotha',
+      festivalName: 'Tokhü Emong',
+      localAsset: 'assets/images/tribes/10_lotha.webp',
+      networkUrl:
+          'https://www.morungexpress.com/uploads/2023/11/46784418_1699114793_DSCF4089.webp',
       description:
-          'Mimkut is celebrated by the Kuki tribe dedicated to the departed souls, expressing gratitude for harvest and seeking blessings for the upcoming agricultural cycle.',
+          'The Lotha Tokhü Emong is a traditional post-harvest festival of thanksgiving, reconciliation, unity, and forecasting. The village chief (Pvüti) invites the leaders of the dormitories (Chümpho-ramo e) and their members to gather. The chief announces the festival dates and rituals, which are then observed by all in the village.\n\nThe main purposes of Tokhü Emong are to give thanks for the blessings of the past year, foster reconciliation and unity within the community, and forecast the coming year. This forecasting is done through rituals that include halting outdoor work, restricting outsiders, refraining from indulgence in desires, and prayer. The theme of Tokhü Emong, "SENJÜMTA", means "Reconciliation and Unity."',
     ),
-    CalendarEvent(
-      title: 'Bishu',
-      month: 'JAN',
-      days: '27',
-      year: '2027',
-      monthColor: Color(0xFF059669),
-      isConfirmed: false,
-      tribe: 'Kachari Tribe',
-      tribeShort: 'Kachari',
-      location: 'Dimapur and Kachari settlements',
-      dateRange: '27 January 2027',
+    TribalFestival(
+      id: 11,
+      tribe: 'Phom',
+      festivalName: 'Monyu Festival',
+      localAsset: 'assets/images/tribes/11_phom.webp',
+      networkUrl:
+          'https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/festivals%2FPhom.png?alt=media&token=a4a1e7a5-3fc5-4a3a-90ca-766f5a51db26',
       description:
-          'Bishu is the harvest and new year festival of the Kacharis, celebrated with joyous drumming, traditional Baisugu dances, and community feasting.',
+          'The Phom Monyu festival, celebrated from April 1st to 6th, marks the end of winter and the start of the monsoon season. It is a time to pray for a bountiful harvest after sowing rice. The festival also involves socializing with family and friends, exchanging gifts, rice beer, meat, and food, and showcasing social status through traditional attire, especially by the wealthy and warriors.',
     ),
-    CalendarEvent(
-      title: 'Poang Lum',
-      month: 'JAN',
-      days: '13',
-      year: '2027',
-      monthColor: Color(0xFFE11D48),
-      isConfirmed: false,
-      tribe: 'Chang Tribe',
-      tribeShort: 'Chang',
-      location: 'Tuensang District',
-      dateRange: '13 January 2027',
+    TribalFestival(
+      id: 12,
+      tribe: 'Pochury',
+      festivalName: 'Yemshe Festival',
+      localAsset: 'assets/images/tribes/12_pochury.webp',
+      networkUrl:
+          'https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/festivals%2FPochury.png?alt=media&token=36f3b794-ea1d-4c0f-8a84-f591c8af9296',
       description:
-          'Poang Lum is a post-harvest winter festival of the Changs symbolizing peace, trading, and friendship among villages.',
+          'Yemshe is the festival for blessing the upcoming harvest. All the Pochuries celebrate this festival with great pomp and gaiety anticipating a good harvest. Yemshe is observed on October 5th in tune with the traditional days of the event, with sanctification rituals, merrymaking, and gift sharing.\n\nThe arrival of the festival is announced by the village elder, after which cleaning of village roads, footpaths, wells, and fields begins. Elaborate feasts are hosted, youth engage in indigenous sporting contests, and traditional songs and dances fill the morungs as blessings are invoked on both the community and crops.',
     ),
-
-    // FEBRUARY 2027
-    CalendarEvent(
-      title: 'Sekrenyi',
-      month: 'FEB',
-      days: '25',
-      year: '2027',
-      monthColor: Color(0xFFDC2626),
-      isConfirmed: false,
-      tribe: 'Angami Tribe',
-      tribeShort: 'Angami',
-      location: 'Kohima and Angami villages',
-      dateRange: '25 February 2027',
+    TribalFestival(
+      id: 13,
+      tribe: 'Rengma',
+      festivalName: 'Ngada Festival',
+      localAsset: 'assets/images/tribes/13_rengma.webp',
+      networkUrl:
+          'https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/festivals%2FRengma.png?alt=media&token=682a4c5b-b325-4c80-8db8-959e4ea052d4',
       description:
-          'Sekrenyi, also known as Phousanyi, is the festival of purification and sanctification of body and soul among the Angamis, marked by rituals and community feasts.',
+          'The Ngada festival, celebrated by the Rengmas for eight days after the harvest, is a thanksgiving and rejoicing event marking the end of the agricultural year. The village high priest (Phensengu) announces the start of the festival with a loud proclamation, signaling the villagers to prepare for the celebrations.\n\nDuring Ngada, each day holds special ritual significance: preparing rice beer and food, visiting graves of departed ancestors, performing purification rites, holding traditional feasts, and singing warrior and folk songs. The festival concludes with reconciliation, blessing of seeds, and wishing peace for all households.',
     ),
-
-    // MARCH 2027
-    CalendarEvent(
-      title: 'Mileinyi',
-      month: 'MAR',
-      days: '10-11',
-      year: '2027',
-      monthColor: Color(0xFF0284C7),
-      isConfirmed: false,
-      tribe: 'Zeliang Tribe',
-      tribeShort: 'Zeliang',
-      location: 'Jalukie and Zeliang Areas',
-      dateRange: '10 to 11 March 2027',
+    TribalFestival(
+      id: 14,
+      tribe: 'Sangtam',
+      festivalName: 'Mungmung Festival',
+      localAsset: 'assets/images/tribes/14_sangtam.webp',
+      networkUrl:
+          'https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/festivals%2FSangtam.png?alt=media&token=43cfb955-7a5e-4109-814a-4d4221420461',
       description:
-          'Mileinyi is a festival of games, sports, wrestling, and community bonding celebrated by the Zeliang community as winter ends.',
+          '"Mungmung" is one of the most important festivals of the Sangtam tribe, centered around the worship of the house deity and the three cooking stones in the fireplace. It is connected to food production, blessings, and prosperity, celebrated across six days of ritual sanctification.\n\nThe festival features unique customs including the sacrifice of animals for communal feasts, brewing of special ginger wine and rice beer, visits to in-laws and exchange of fire from the sacred morung hearth, and vibrant warrior dances that honor the brave history and unity of the Sangtam people.',
     ),
-
-    // APRIL 2027
-    CalendarEvent(
-      title: 'Aoleang Monyu',
-      month: 'APR',
-      days: '1-3',
-      year: '2027',
-      monthColor: Color(0xFFDC2626),
-      isConfirmed: false,
-      tribe: 'Konyak Tribe',
-      tribeShort: 'Konyak',
-      location: 'Mon District and Konyak villages',
-      dateRange: '1 to 3 April 2027',
+    TribalFestival(
+      id: 15,
+      tribe: 'Sumi',
+      festivalName: 'Tuluni & Ahuna',
+      localAsset: 'assets/images/tribes/15_sumi.webp',
+      networkUrl:
+          'https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/festivals%2FSumi.png?alt=media&token=15b59c43-6183-417b-afbf-433c2166f209',
       description:
-          'Aoleang is the biggest festival of the Konyaks, marking the welcoming of spring and praying for a fruitful new agricultural season with songs and warrior dances.',
+          'The Tuluni Festival is a major celebration of the Sumi Nagas in July, marking the arrival of new crops and seeking blessings for a bountiful harvest. Tulu means "grand feast" and Ni means "celebration". Spanning seven days with rituals including Asuzani, Aghizani, Ashigheni, Anighini, Mucholani, Tupulani, and Tughakhani, the festival celebrates unity, gratitude, and cultural traditions.\n\nAhuna is the premier post-harvest festival of the Sumis celebrated on November 14th, marking the successful completion of the agricultural season. Newly harvested rice is cooked inside freshly cut bamboo tubes (Ahuna), accompanied by grand warrior dances, traditional games like kick-fighting (Aki Kiti), and thanksgiving ceremonies.',
     ),
-    CalendarEvent(
-      title: 'Monyu',
-      month: 'APR',
-      days: '4-5',
-      year: '2027',
-      monthColor: Color(0xFF7C3AED),
-      isConfirmed: false,
-      tribe: 'Phom Tribe',
-      tribeShort: 'Phom',
-      location: 'Longleng District',
-      dateRange: '4 to 5 April 2027',
+    TribalFestival(
+      id: 16,
+      tribe: 'Tikhir',
+      festivalName: 'Tsonglak-Nyi Festival',
+      localAsset: 'assets/images/tribes/16_tikhir.webp',
+      networkUrl:
+          'https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/festivals%2FTikhir.webp?alt=media&token=b7b3f429-e6b9-4ab2-b734-bc1a1850a331',
       description:
-          'Monyu is the traditional spring festival of the Phom tribe marking the conclusion of winter and commencement of sowing seeds.',
+          'Tsonglaknyi, celebrated annually from October 9–12 by the Tikhir tribe, signifies the "Sanctification of Shield." Once a festival for men during the headhunting era, it now marks preparation for the harvest and is celebrated by all with traditional rites, storytelling, and warrior dances.\n\nThe festival reinforces communal solidarity, purification of weapons and farming tools, and offering prayers for bountiful harvests and the protection of the village.',
     ),
-    CalendarEvent(
-      title: 'Moatsu',
-      month: 'MAY',
-      days: '1-3',
-      year: '2027',
-      monthColor: Color(0xFF059669),
-      isConfirmed: false,
-      tribe: 'Ao Tribe',
-      tribeShort: 'Ao',
-      location: 'Mokokchung District',
-      dateRange: '1 to 3 May 2027',
+    TribalFestival(
+      id: 17,
+      tribe: 'Yimkhiung',
+      festivalName: 'Metümnyo Festival',
+      localAsset: 'assets/images/tribes/17_yimkhiung.webp',
+      networkUrl:
+          'https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/festivals%2FYimkhiung.png?alt=media&token=ef9d94f4-8dba-4f20-abbb-7b8d64e1b7d4',
       description:
-          'Moatsu Mong is celebrated by the Ao tribe in early May after clearing and sowing the jhum fields, marked by singing and traditional dances.',
+          'Metümnyo, which translates to "Me" (Soul), "Tüm" (Ritualistic Respect) and "Nyo" (Festival), is celebrated in August by the Yimkhiung tribe. It is a solemn festival invoking blessings for a bountiful harvest and honoring the souls of newborns, departed loved ones, and ancestors.\n\nThe five-day festival is marked by cleaning the village pathways, sanctifying agricultural implements, hosting feasts of merit, arranging engagements and betrothals, and participating in rich communal dances in full warrior regalia.',
     ),
-    CalendarEvent(
-      title: 'Tuluni',
-      month: 'JUL',
-      days: '8',
-      year: '2027',
-      monthColor: Color(0xFF20B08D),
-      isConfirmed: false,
-      tribe: 'Sumi Tribe',
-      tribeShort: 'Sumi',
-      location: 'Zunheboto District',
-      dateRange: '8 July 2027',
+    TribalFestival(
+      id: 18,
+      tribe: 'Zeliang',
+      festivalName: 'Chaga Gadi & Hega',
+      localAsset: 'assets/images/tribes/18_zeliang.webp',
+      networkUrl:
+          'https://firebasestorage.googleapis.com/v0/b/hornbill-nagaland.appspot.com/o/festivals%2FZeliang.png?alt=media&token=8f8fbea2-6a6b-4a0e-86c8-56cba93bead3',
       description:
-          'Tuluni is celebrated to welcome a bountiful harvest, betrothal celebrations, and joyous community sharing of rice beer and food.',
-    ),
-    CalendarEvent(
-      title: 'Naknyulum',
-      month: 'JUL',
-      days: '29-31',
-      year: '2027',
-      monthColor: Color(0xFFEA580C),
-      isConfirmed: false,
-      tribe: 'Chang Tribe',
-      tribeShort: 'Chang',
-      location: 'Tuensang District',
-      dateRange: '29 to 31 July 2027',
-      description:
-          'Naknyulum is celebrated by the Chang community with musical instruments like the kongto, celebrating friendship and joy.',
-    ),
-    CalendarEvent(
-      title: 'Metemneo',
-      month: 'AUG',
-      days: '8',
-      year: '2027',
-      monthColor: Color(0xFF0284C7),
-      isConfirmed: false,
-      tribe: 'Yimkhiung Tribe',
-      tribeShort: 'Yimkhiung',
-      location: 'Shamator & Kiphire',
-      dateRange: '8 August 2027',
-      description:
-          'Metemneo is celebrated after the harvest of millet, offering prayers for the deceased and blessings for infants.',
-    ),
-    CalendarEvent(
-      title: 'Amongmong',
-      month: 'SEP',
-      days: '3',
-      year: '2027',
-      monthColor: Color(0xFFD97706),
-      isConfirmed: false,
-      tribe: 'Sangtam Tribe',
-      tribeShort: 'Sangtam',
-      location: 'Kiphire District',
-      dateRange: '3 September 2027',
-      description:
-          'Amongmong is the premier harvest festival of the Sangtams, seeking blessings for a peaceful life and prosperity.',
-    ),
-    CalendarEvent(
-      title: 'Yemshe',
-      month: 'OCT',
-      days: '5',
-      year: '2027',
-      monthColor: Color(0xFF20B08D),
-      isConfirmed: false,
-      tribe: 'Pochury Tribe',
-      tribeShort: 'Pochury',
-      location: 'Meluri & Phek Areas',
-      dateRange: '5 October 2027',
-      description:
-          'Yemshe is the grand harvest festival of the Pochury tribe, welcoming the newly harvested crops with joyous traditional celebrations.',
-    ),
-    CalendarEvent(
-      title: 'Khuving Kut',
-      month: 'OCT',
-      days: '22',
-      year: '2027',
-      monthColor: Color(0xFF7C3AED),
-      isConfirmed: false,
-      tribe: 'Kuki Tribe',
-      tribeShort: 'Kuki',
-      location: 'Peren District',
-      dateRange: '22 October 2027',
-      description:
-          'Khuving Kut is celebrated by the Kuki tribe to invoke blessings for agriculture and general welfare.',
+          'Chaga Gadi is the blessed festival of thanksgiving celebrated by the Liangmai Zeliang community in October, following the harvest. It is a season of sanctification, honoring women for their dedication to the family, seeking spiritual purification, and sharing lavish feasts.\n\nHega and Lamsimngyi are also celebrated to kindle unity, rekindle bonds between parents, married daughters, and siblings with traditional games, tug-of-war, and ceremonial folk dances invoking blessings for future prosperity.',
     ),
   ];
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
+  void _toggleExpansion(int id) {
+    setState(() {
+      if (_expandedId == id) {
+        _expandedId = null;
+      } else {
+        _expandedId = id;
+      }
+    });
   }
 
-  void _showEventDetailModal(CalendarEvent event) {
-    showDialog(
-      context: context,
-      barrierColor: Colors.black54,
-      builder: (context) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-            ),
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 22),
+  void _handleBack() {
+    if (widget.onBack != null) {
+      widget.onBack!();
+    } else {
+      Navigator.maybePop(context);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom > 0
+        ? MediaQuery.of(context).padding.bottom
+        : MediaQuery.of(context).viewPadding.bottom;
+    final topInset = MediaQuery.of(context).padding.top;
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        top: false,
+        bottom: true,
+        child: Stack(
+        children: [
+          // Scrollable Content
+          SingleChildScrollView(
+            padding: EdgeInsets.zero,
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Top Row: Date Pill & Close Button
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE2FAF4),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.calendar_today_rounded,
-                            size: 15,
-                            color: Color(0xFF20B08D),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            event.dateRange,
-                            style: const TextStyle(
-                              fontFamily: 'Lato',
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF00796B),
-                            ),
-                          ),
-                        ],
-                      ),
+                // Top Hero Banner Image matching Festivals section tile
+                SizedBox(
+                  height: 250 + topInset,
+                  width: double.infinity,
+                  child: Image.asset(
+                    'assets/images/tile_festivals.jpg',
+                    fit: BoxFit.cover,
+                    alignment: const Alignment(0.0, -0.2),
+                    errorBuilder: (_, __, ___) => Image.asset(
+                      'assets/images/festivals_top_hero.png',
+                      fit: BoxFit.cover,
+                      alignment: Alignment.topCenter,
                     ),
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: Container(
-                        height: 32,
-                        width: 32,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF1F5F9),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.close,
-                          size: 18,
-                          color: Color(0xFF64748B),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // Title: Festival Name
-                Text(
-                  event.title,
-                  style: const TextStyle(
-                    fontFamily: 'Lato',
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.black,
                   ),
                 ),
-                const SizedBox(height: 12),
 
-                // Chips Row: Tribe & Location
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE2FAF4),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.groups_outlined,
-                            size: 16,
-                            color: Color(0xFF20B08D),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            event.tribeShort,
-                            style: const TextStyle(
-                              fontFamily: 'Lato',
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF00796B),
-                            ),
-                          ),
-                        ],
-                      ),
+                // White Rounded Body Sheet Overlapping the Banner
+                Transform.translate(
+                  offset: const Offset(0, -28),
+                  child: Container(
+                    width: double.infinity,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(28)),
                     ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                    padding: EdgeInsets.fromLTRB(16, 22, 16, 120 + bottomInset),
+                    child: StreamBuilder<List<Map<String, dynamic>>>(
+                      stream: FirebaseService().getFestivals(),
+                      builder: (context, snapshot) {
+                        List<TribalFestival> festivals;
+                        if (snapshot.hasData && snapshot.data!.isNotEmpty) {
+                          festivals = snapshot.data!
+                              .map((doc) => TribalFestival.fromMap(doc))
+                              .toList();
+                          festivals.sort((a, b) => a.id.compareTo(b.id));
+                        } else {
+                          festivals = _defaultFestivals;
+                        }
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(
-                              Icons.location_on_outlined,
-                              size: 16,
-                              color: Color(0xFF64748B),
-                            ),
-                            const SizedBox(width: 4),
-                            Flexible(
-                              child: Text(
-                                event.location,
-                                style: const TextStyle(
-                                  fontFamily: 'Lato',
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF475569),
-                                ),
-                                overflow: TextOverflow.ellipsis,
+                            // Title
+                            const Text(
+                              'Festivals of Nagaland',
+                              style: TextStyle(
+                                fontFamily: 'Lato',
+                                fontSize: 24,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF0F172A),
+                                letterSpacing: -0.3,
                               ),
                             ),
+                            const SizedBox(height: 4),
+
+                            // Subtitle
+                            Text(
+                              '${festivals.length} Tribal Festivals',
+                              style: const TextStyle(
+                                fontFamily: 'Lato',
+                                fontSize: 14,
+                                color: Color(0xFF475569),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+
+                            // Divider
+                            const Divider(
+                              color: Color(0xFFE2E8F0),
+                              thickness: 1,
+                              height: 1,
+                            ),
+                            const SizedBox(height: 18),
+
+                            // Section Heading
+                            const Text(
+                              'Details',
+                              style: TextStyle(
+                                fontFamily: 'Lato',
+                                fontSize: 18.5,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Tribal Accordion Cards (Dynamic from Firestore)
+                            ListView.separated(
+                              padding: EdgeInsets.zero,
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: festivals.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 14),
+                              itemBuilder: (context, index) {
+                                final festival = festivals[index];
+                                final isExpanded =
+                                    _expandedId == festival.id;
+                                return _buildFestivalAccordionCard(
+                                  festival: festival,
+                                  isExpanded: isExpanded,
+                                );
+                              },
+                            ),
                           ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // STATUS Label
-                const Text(
-                  'STATUS',
-                  style: TextStyle(
-                    fontFamily: 'Lato',
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF94A3B8),
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                const SizedBox(height: 6),
-
-                // Status Pill
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: event.isConfirmed
-                        ? const Color(0xFFE2FAF4)
-                        : const Color(0xFFFEF3C7),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        event.isConfirmed ? Icons.check_circle : Icons.schedule,
-                        size: 16,
-                        color: event.isConfirmed
-                            ? const Color(0xFF20B08D)
-                            : const Color(0xFFD97706),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        event.isConfirmed
-                            ? 'Confirmed ${event.year} Schedule'
-                            : 'Usual Dates',
-                        style: TextStyle(
-                          fontFamily: 'Lato',
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: event.isConfirmed
-                              ? const Color(0xFF00796B)
-                              : const Color(0xFF92400E),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 18),
-
-                // About Card
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'ABOUT THE CELEBRATION',
-                        style: TextStyle(
-                          fontFamily: 'Lato',
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF94A3B8),
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        event.description,
-                        style: const TextStyle(
-                          fontFamily: 'Lato',
-                          fontSize: 13.5,
-                          height: 1.5,
-                          color: Color(0xFF334155),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Got It Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF052B3B),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    child: const Text(
-                      'Got It',
-                      style: TextStyle(
-                        fontFamily: 'Lato',
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
+                        );
+                      },
                     ),
                   ),
                 ),
               ],
             ),
           ),
-        );
-      },
-    );
+
+          // Floating Circular Back Button
+          Positioned(
+            top: topInset > 0 ? topInset + 10 : 20,
+            left: 16,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: _handleBack,
+                borderRadius: BorderRadius.circular(24),
+                child: Container(
+                  width: 42,
+                  height: 42,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 8,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.chevron_left,
+                    color: Color(0xFF0F172A),
+                    size: 26,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    // Filter events
-    var list = _allEvents;
-    if (_selectedFilterIndex == 1) {
-      list = list.where((e) => e.year == '2026').toList();
-    } else if (_selectedFilterIndex == 2) {
-      list = list.where((e) => e.year == '2027').toList();
-    }
-
-    final query = _searchController.text.trim().toLowerCase();
-    if (query.isNotEmpty) {
-      list = list.where((e) {
-        return e.title.toLowerCase().contains(query) ||
-            e.tribe.toLowerCase().contains(query) ||
-            e.location.toLowerCase().contains(query);
-      }).toList();
-    }
-
-    // Group by Month Year
-    final Map<String, List<CalendarEvent>> grouped = {};
-    for (final event in list) {
-      final key = '${_fullMonthName(event.month)} ${event.year}';
-      grouped.putIfAbsent(key, () => []).add(event);
-    }
-
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            // Top App Bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+  Widget _buildFestivalAccordionCard({
+    required TribalFestival festival,
+    required bool isExpanded,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: const Color(0xFFE2E8F0),
+          width: 1,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 4,
+            offset: Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Row (Always visible & tappable)
+          InkWell(
+            onTap: () => _toggleExpansion(festival.id),
+            borderRadius: BorderRadius.circular(14),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Circular back button
-                  GestureDetector(
-                    onTap: () {
-                      if (widget.onBack != null) {
-                        widget.onBack!();
-                      } else {
-                        Navigator.pop(context);
-                      }
-                    },
-                    child: Container(
-                      height: 38,
-                      width: 38,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.chevron_left_rounded,
-                        size: 26,
-                        color: Colors.black87,
+                  // Green Numbered Badge (1..18)
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF20B08D),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '${festival.id}',
+                      style: const TextStyle(
+                        fontFamily: 'Lato',
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 14),
 
-                  // Center title
+                  // Tribe Name & Festival Name
                   Expanded(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: const [
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          'Cultural Calendar',
-                          style: TextStyle(
+                          festival.tribe,
+                          style: const TextStyle(
                             fontFamily: 'Lato',
-                            fontSize: 17,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.black,
+                            fontSize: 16.5,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
                           ),
                         ),
-                        SizedBox(height: 2),
+                        const SizedBox(height: 2),
                         Text(
-                          'Nagaland Festivals 2026 – 2027',
-                          style: TextStyle(
+                          festival.festivalName,
+                          style: const TextStyle(
                             fontFamily: 'Lato',
-                            fontSize: 12,
-                            color: Color(0xFF6B7280),
+                            fontSize: 13.5,
                             fontWeight: FontWeight.w500,
+                            color: Color(0xFF64748B),
                           ),
                         ),
                       ],
                     ),
                   ),
 
-                  // Trailing "23" badge
-                  Container(
-                    height: 32,
-                    width: 32,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE2FAF4),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    alignment: Alignment.center,
-                    child: const Text(
-                      '23',
-                      style: TextStyle(
-                        fontFamily: 'Lato',
-                        fontSize: 13,
-                        fontWeight: FontWeight.w900,
-                        color: Color(0xFF00796B),
-                      ),
-                    ),
+                  // Double Arrow Chevron Indicator
+                  Icon(
+                    isExpanded
+                        ? Icons.keyboard_double_arrow_up_rounded
+                        : Icons.keyboard_double_arrow_down_rounded,
+                    color: const Color(0xFF475569),
+                    size: 24,
                   ),
                 ],
               ),
             ),
+          ),
 
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+          // Expanded Content (Photo & Detailed Text)
+          if (isExpanded) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Gradient Banner Card
-                  Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF052B3B), Color(0xFF0A445C)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Pill Tag
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: const [
-                              Icon(
-                                Icons.calendar_today_rounded,
-                                size: 12,
-                                color: Color(0xFF20B08D),
-                              ),
-                              SizedBox(width: 6),
-                              Text(
-                                'OCT 2026 – OCT 2027   Official & Community List',
-                                style: TextStyle(
-                                  fontFamily: 'Lato',
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF20B08D),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-
-                        // Title
-                        const Text(
-                          'Nagaland Cultural Calendar',
-                          style: TextStyle(
-                            fontFamily: 'Lato',
-                            fontSize: 20,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-
-                        // Subtitle
-                        const Text(
-                          'Discover the vibrant tapestry of celebrations across all indigenous Naga tribes, including dates, tribal communities, and host locations.',
-                          style: TextStyle(
-                            fontFamily: 'Lato',
-                            fontSize: 12.5,
-                            height: 1.4,
-                            color: Colors.white70,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Search Bar
-                  Container(
-                    height: 46,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                    ),
-                    child: TextField(
-                      controller: _searchController,
-                      onChanged: (_) => setState(() {}),
-                      decoration: const InputDecoration(
-                        hintText: 'Search by festival, tribe, or District...',
-                        hintStyle: TextStyle(
-                          fontFamily: 'Lato',
-                          fontSize: 13.5,
-                          color: Color(0xFF94A3B8),
-                        ),
-                        prefixIcon: Icon(
-                          Icons.search,
-                          color: Color(0xFF94A3B8),
-                          size: 20,
-                        ),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      ),
+                  // Festival Photo (fixed 16:10 frame prevents layout jump while loading)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: AspectRatio(
+                      aspectRatio: 16 / 10,
+                      child: _buildFestivalPhoto(festival),
                     ),
                   ),
                   const SizedBox(height: 14),
 
-                  // Filter Pills Row
-                  Row(
-                    children: [
-                      // All Events (23)
-                      GestureDetector(
-                        onTap: () => setState(() => _selectedFilterIndex = 0),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: _selectedFilterIndex == 0
-                                ? const Color(0xFF052B3B)
-                                : Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: _selectedFilterIndex == 0
-                                  ? const Color(0xFF052B3B)
-                                  : const Color(0xFFE2E8F0),
-                            ),
-                          ),
-                          child: Text(
-                            'All Events (23)',
-                            style: TextStyle(
-                              fontFamily: 'Lato',
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.bold,
-                              color: _selectedFilterIndex == 0
-                                  ? Colors.white
-                                  : const Color(0xFF334155),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-
-                      // 2026 Schedule
-                      GestureDetector(
-                        onTap: () => setState(() => _selectedFilterIndex = 1),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: _selectedFilterIndex == 1
-                                ? const Color(0xFF052B3B)
-                                : Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: _selectedFilterIndex == 1
-                                  ? const Color(0xFF052B3B)
-                                  : const Color(0xFFE2E8F0),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                height: 7,
-                                width: 7,
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFF20B08D),
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                '2026 Schedule',
-                                style: TextStyle(
-                                  fontFamily: 'Lato',
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.bold,
-                                  color: _selectedFilterIndex == 1
-                                      ? Colors.white
-                                      : const Color(0xFF334155),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-
-                      // 2027 Festivals
-                      GestureDetector(
-                        onTap: () => setState(() => _selectedFilterIndex = 2),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: _selectedFilterIndex == 2
-                                ? const Color(0xFF052B3B)
-                                : Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: _selectedFilterIndex == 2
-                                  ? const Color(0xFF052B3B)
-                                  : const Color(0xFFE2E8F0),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                height: 7,
-                                width: 7,
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFFF59E0B),
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                '2027 Festivals',
-                                style: TextStyle(
-                                  fontFamily: 'Lato',
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.bold,
-                                  color: _selectedFilterIndex == 2
-                                      ? Colors.white
-                                      : const Color(0xFF334155),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
+                  // Paragraph Description
+                  Text(
+                    festival.description,
+                    style: const TextStyle(
+                      fontFamily: 'Lato',
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w400,
+                      color: Color(0xFF334155),
+                      height: 1.5,
+                    ),
                   ),
-                  const SizedBox(height: 20),
-
-                  // Month Sections
-                  ...grouped.entries.map((entry) {
-                    final monthName = entry.key;
-                    final events = entry.value;
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Month Header Row
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 12, top: 4),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 3.5,
-                                    height: 16,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF20B08D),
-                                      borderRadius: BorderRadius.circular(2),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    monthName.toUpperCase(),
-                                    style: const TextStyle(
-                                      fontFamily: 'Lato',
-                                      fontSize: 14.5,
-                                      fontWeight: FontWeight.w900,
-                                      color: Color(0xFF1E293B),
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              Text(
-                                '${events.length} Celebration${events.length > 1 ? 's' : ''}',
-                                style: const TextStyle(
-                                  fontFamily: 'Lato',
-                                  fontSize: 12,
-                                  color: Color(0xFF94A3B8),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // Events Cards List
-                        ...events.map((event) {
-                          return GestureDetector(
-                            onTap: () => _showEventDetailModal(event),
-                            child: Container(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(18),
-                                border: Border.all(color: const Color(0xFFF1F5F9)),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.03),
-                                    blurRadius: 6,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                children: [
-                                  // Date Box on left
-                                  Container(
-                                    width: 60,
-                                    height: 72,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF8FAFC),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                                    ),
-                                    child: Column(
-                                      children: [
-                                        // Month Header Pill
-                                        Container(
-                                          width: double.infinity,
-                                          height: 22,
-                                          decoration: BoxDecoration(
-                                            color: event.monthColor,
-                                            borderRadius: const BorderRadius.vertical(
-                                              top: Radius.circular(11),
-                                            ),
-                                          ),
-                                          alignment: Alignment.center,
-                                          child: Text(
-                                            event.month,
-                                            style: const TextStyle(
-                                              fontFamily: 'Lato',
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w900,
-                                              color: Colors.white,
-                                            ),
-                                          ),
-                                        ),
-                                        // Days
-                                        Expanded(
-                                          child: Center(
-                                            child: Text(
-                                              event.days,
-                                              style: const TextStyle(
-                                                fontFamily: 'Lato',
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w900,
-                                                color: Colors.black,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        // Year
-                                        Padding(
-                                          padding: const EdgeInsets.only(bottom: 3),
-                                          child: Text(
-                                            event.year,
-                                            style: const TextStyle(
-                                              fontFamily: 'Lato',
-                                              fontSize: 9.5,
-                                              color: Color(0xFF94A3B8),
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 14),
-
-                                  // Center Info
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        // Confirmed badge
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 2.5,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: event.isConfirmed
-                                                ? const Color(0xFFE2FAF4)
-                                                : const Color(0xFFFEF3C7),
-                                            borderRadius: BorderRadius.circular(10),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Icon(
-                                                event.isConfirmed
-                                                    ? Icons.check_circle
-                                                    : Icons.schedule,
-                                                size: 11,
-                                                color: event.isConfirmed
-                                                    ? const Color(0xFF20B08D)
-                                                    : const Color(0xFFD97706),
-                                              ),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                event.isConfirmed
-                                                    ? 'Confirmed'
-                                                    : 'Usual Dates',
-                                                style: TextStyle(
-                                                  fontFamily: 'Lato',
-                                                  fontSize: 10.5,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: event.isConfirmed
-                                                      ? const Color(0xFF00796B)
-                                                      : const Color(0xFF92400E),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        const SizedBox(height: 5),
-
-                                        // Title
-                                        Text(
-                                          event.title,
-                                          style: const TextStyle(
-                                            fontFamily: 'Lato',
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w900,
-                                            color: Colors.black,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-
-                                        // Tribe
-                                        Row(
-                                          children: [
-                                            const Icon(
-                                              Icons.groups_outlined,
-                                              size: 14,
-                                              color: Color(0xFF64748B),
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Expanded(
-                                              child: Text(
-                                                event.tribe,
-                                                style: const TextStyle(
-                                                  fontFamily: 'Lato',
-                                                  fontSize: 12,
-                                                  color: Color(0xFF64748B),
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 2),
-
-                                        // Location
-                                        Row(
-                                          children: [
-                                            const Icon(
-                                              Icons.location_on_outlined,
-                                              size: 14,
-                                              color: Color(0xFF64748B),
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Expanded(
-                                              child: Text(
-                                                event.location,
-                                                style: const TextStyle(
-                                                  fontFamily: 'Lato',
-                                                  fontSize: 12,
-                                                  color: Color(0xFF94A3B8),
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-
-                                  // Trailing Button
-                                  Container(
-                                    width: 32,
-                                    height: 32,
-                                    decoration: const BoxDecoration(
-                                      color: Color(0xFF20B08D),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    alignment: Alignment.center,
-                                    child: const Icon(
-                                      Icons.keyboard_double_arrow_right_rounded,
-                                      color: Colors.white,
-                                      size: 18,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        }),
-                        const SizedBox(height: 10),
-                      ],
-                    );
-                  }),
                 ],
               ),
             ),
           ],
-        ),
+        ],
       ),
     );
   }
 
-  String _fullMonthName(String abbrev) {
-    switch (abbrev) {
-      case 'OCT':
-        return 'October';
-      case 'NOV':
-        return 'November';
-      case 'DEC':
-        return 'December';
-      case 'JAN':
-        return 'January';
-      case 'FEB':
-        return 'February';
-      case 'MAR':
-        return 'March';
-      case 'APR':
-        return 'April';
-      case 'MAY':
-        return 'May';
-      case 'JUL':
-        return 'July';
-      case 'AUG':
-        return 'August';
-      case 'SEP':
-        return 'September';
-      default:
-        return abbrev;
+  Widget _buildFestivalPhoto(TribalFestival festival) {
+    final photoUrl = festival.networkUrl.trim();
+    final hasRemotePhoto = photoUrl.isNotEmpty &&
+        (photoUrl.startsWith('http://') || photoUrl.startsWith('https://'));
+
+    if (hasRemotePhoto) {
+      final safeUrl = kIsWeb
+          ? 'https://images.weserv.nl/?url=${Uri.encodeComponent(photoUrl)}'
+          : photoUrl;
+
+      return CachedNetworkImage(
+        imageUrl: safeUrl,
+        width: double.infinity,
+        height: double.infinity,
+        fit: BoxFit.cover,
+        alignment: Alignment.topCenter,
+        memCacheWidth: 800,
+        fadeInDuration: const Duration(milliseconds: 150),
+        placeholder: (context, url) => _buildImagePlaceholder(),
+        errorWidget: (_, __, ___) => _buildImageFallback(),
+      );
     }
+
+    return _buildImageFallback();
+  }
+
+  /// Production-grade greyish lazy loader skeleton (no circular spinner)
+  Widget _buildImagePlaceholder() {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      color: const Color(0xFFF1F5F9),
+      alignment: Alignment.center,
+      child: const Icon(
+        Icons.image_outlined,
+        size: 34,
+        color: Color(0xFFCBD5E1),
+      ),
+    );
+  }
+
+  /// Graceful fallback when image is unavailable
+  Widget _buildImageFallback() {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      color: const Color(0xFFF1F5F9),
+      alignment: Alignment.center,
+      child: const Icon(
+        Icons.image_outlined,
+        size: 34,
+        color: Color(0xFFCBD5E1),
+      ),
+    );
   }
 }

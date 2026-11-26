@@ -44,9 +44,16 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Firebase / Google Services secrets
+# Firebase / Google Services configs
 android/app/google-services.json
 !android/app/google-services.json.example
+ios/Runner/GoogleService-Info.plist
+
+# Keystore and signing secrets
+*.jks
+*.keystore
+android/key.properties
+**/key.properties
 
 # Binaries and reference
 *.apk

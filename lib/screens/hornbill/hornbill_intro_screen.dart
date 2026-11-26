@@ -94,7 +94,7 @@ class HornbillIntroScreen extends StatelessWidget {
 
                 const Spacer(),
 
-                // White Rounded Pill Button: "Hornbill Festival 2025"
+                // White Rounded Pill Button: "Hornbill Festival 2026"
                 GestureDetector(
                   onTap: onEnter,
                   child: Container(
@@ -113,7 +113,7 @@ class HornbillIntroScreen extends StatelessWidget {
                     ),
                     alignment: Alignment.center,
                     child: const Text(
-                      'Hornbill Festival 2025',
+                      'Hornbill Festival 2026',
                       style: TextStyle(
                         fontFamily: 'Lato',
                         fontSize: 16.5,

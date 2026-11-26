@@ -15,6 +15,7 @@ import 'photo_contest_screen.dart';
 import 'pdf_viewer_screen.dart';
 import 'discover_viewpoint_screen.dart';
 import 'tourist_map_screen.dart';
+import '../../widgets/tourist_map_banner_tile.dart';
 
 
 class HomeDashboardScreen extends StatelessWidget {
@@ -60,7 +61,11 @@ class HomeDashboardScreen extends StatelessWidget {
                         AnimatedBuilder(
                           animation: mockUser,
                           builder: (context, _) {
-                            final name = mockUser.isLoggedIn ? mockUser.name : "Guest";
+                            final name = mockUser.isLoggedIn
+                                ? mockUser.name
+                                : (mockUser.name.isNotEmpty && mockUser.name != "Guest User"
+                                    ? mockUser.name
+                                    : "Guest");
                             final subtitle = mockUser.isLoggedIn ? 'Welcome back' : 'Welcome to Hornbill';
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -70,8 +75,8 @@ class HomeDashboardScreen extends StatelessWidget {
                                   style: const TextStyle(
                                     fontFamily: 'Lato',
                                     fontWeight: FontWeight.w800,
-                                    fontSize: 22,
-                                    color: Color(0xFF222222),
+                                    fontSize: 20,
+                                    color: Color(0xFF1E293B),
                                   ),
                                 ),
                                 const SizedBox(height: 2),
@@ -79,8 +84,9 @@ class HomeDashboardScreen extends StatelessWidget {
                                   subtitle,
                                   style: const TextStyle(
                                     fontFamily: 'Lato',
-                                    fontSize: 14,
-                                    color: Color(0xFF888484),
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 24,
+                                    color: Colors.black,
                                   ),
                                 ),
                               ],
@@ -102,18 +108,14 @@ class HomeDashboardScreen extends StatelessWidget {
                 ),
               ),
 
-              // Image Carousel with PAP Relaxation banner
+              // Image Carousel
               StreamBuilder<List<String>>(
                 stream: FirebaseService().getCarouselBanners(),
                 builder: (context, snapshot) {
                   final banners = snapshot.data ?? AppData.homeBanners;
-                  final allBanners = [
-                    'assets/images/pap_relaxation_banner.png',
-                    ...banners,
-                  ];
                   return CustomCarousel(
-                    images: allBanners,
-                    height: 165,
+                    images: banners,
+                    aspectRatio: 16 / 9,
                     borderRadius: 16,
                     margin: const EdgeInsets.symmetric(horizontal: 20),
                   );
@@ -122,8 +124,22 @@ class HomeDashboardScreen extends StatelessWidget {
 
               const SizedBox(height: 14),
 
-              // Card 1: Photo Contest 2025
-              GestureDetector(
+              // Card 1: Photo Contest 2026
+              _buildHomeFeatureCard(
+                context: context,
+                iconAsset: 'assets/images/logo.png',
+                eyebrow: 'HORNBILL FESTIVAL',
+                title: 'PHOTO CONTEST 2026',
+                actionLabel: '[PARTICIPATE]',
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Colors.white, Color(0xFFFFFBEB)],
+                ),
+                backgroundPainter: const _PhotoContestBackgroundPainter(),
+                watermarkIcon: Icons.photo_camera_rounded,
+                watermarkColor: const Color(0xFFD97706),
+                actionColor: const Color(0xFFD97706),
                 onTap: () {
                   if (onOpenPhotoContest != null) {
                     onOpenPhotoContest!();
@@ -136,33 +152,26 @@ class HomeDashboardScreen extends StatelessWidget {
                     );
                   }
                 },
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 18),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(22),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(22),
-                    child: Image.asset(
-                      'assets/images/card_photo_contest_ditto.png',
-                      width: double.infinity,
-                      fit: BoxFit.fill,
-                    ),
-                  ),
-                ),
               ),
 
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
 
               // Card 2: Discover Viewpoint
-              GestureDetector(
+              _buildHomeFeatureCard(
+                context: context,
+                iconAsset: 'assets/images/destination.png',
+                eyebrow: 'EXPLORE NAGALAND',
+                title: 'DISCOVER VIEWPOINT',
+                actionLabel: '[SUBMIT NEW SPOT]',
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Colors.white, Color(0xFFF0F9FF)],
+                ),
+                backgroundPainter: const _ViewpointBackgroundPainter(),
+                watermarkIcon: Icons.landscape_rounded,
+                watermarkColor: const Color(0xFF0284C7),
+                actionColor: const Color(0xFF0284C7),
                 onTap: () {
                   Navigator.push(
                     context,
@@ -171,198 +180,42 @@ class HomeDashboardScreen extends StatelessWidget {
                     ),
                   );
                 },
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 18),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(22),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(22),
-                    child: Image.asset(
-                      'assets/images/card_viewpoint_ditto.png',
-                      width: double.infinity,
-                      fit: BoxFit.fill,
-                    ),
-                  ),
-                ),
               ),
 
               const SizedBox(height: 12),
 
               // Card 3: Nagaland Tourism e-Magazine Card
-              GestureDetector(
+              _buildHomeFeatureCard(
+                context: context,
+                iconAsset: 'assets/images/nagaland_tourism.png',
+                eyebrow: 'NAGALAND TOURISM',
+                title: 'TOURISM E-MAGAZINE',
+                actionLabel: '[2026 EDITION]',
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Colors.white, Color(0xFFF6F8FB)],
+                ),
+                backgroundPainter: const _MagazineBackgroundPainter(),
+                watermarkIcon: Icons.auto_stories_rounded,
+                watermarkColor: const Color(0xFF003848),
+                actionColor: const Color(0xFF0D9488),
                 onTap: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) => const PdfViewerScreen(
                         title: "Nagaland Tourism e-Magazine",
-                        pdfUrl: "https://tourism.nagaland.gov.in/emagazine.pdf",
                       ),
                     ),
                   );
                 },
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 20),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFFEBEBEB), width: 1),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Image.asset(
-                        'assets/images/nagaland_tourism.png',
-                        height: 50,
-                        width: 75,
-                        fit: BoxFit.contain,
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
-                            Text(
-                              'Nagaland Tourism e-Magazine',
-                              style: TextStyle(
-                                fontFamily: 'Lato',
-                                fontWeight: FontWeight.w800,
-                                fontSize: 15.5,
-                                color: Color(0xFF1E293B),
-                              ),
-                            ),
-                            SizedBox(height: 3),
-                            Text(
-                              '2025 Edition [NEW]',
-                              style: TextStyle(
-                                fontFamily: 'Lato',
-                                fontWeight: FontWeight.w800,
-                                fontSize: 13,
-                                color: Color(0xFF20B08D),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ),
 
               const SizedBox(height: 12),
 
               // Card 4: Google Maps Nagaland Tourist Map
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const TouristMapScreen(),
-                    ),
-                  );
-                },
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 20),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFFEBEBEB), width: 1),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 50,
-                        height: 50,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFD4FAF1),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        alignment: Alignment.center,
-                        child: const Icon(
-                          Icons.location_on_rounded,
-                          color: Color(0xFF20B08D),
-                          size: 28,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
-                            Text(
-                              'GOOGLE MAPS',
-                              style: TextStyle(
-                                fontFamily: 'Lato',
-                                fontWeight: FontWeight.w700,
-                                fontSize: 11,
-                                color: Color(0xFF64748B),
-                                letterSpacing: 0.4,
-                              ),
-                            ),
-                            SizedBox(height: 2),
-                            Text(
-                              'Nagaland Tourist Map',
-                              style: TextStyle(
-                                fontFamily: 'Lato',
-                                fontWeight: FontWeight.w900,
-                                fontSize: 16,
-                                color: Color(0xFF1E293B),
-                              ),
-                            ),
-                            SizedBox(height: 3),
-                            Text(
-                              '15 Iconic Spots [EXPLORE]',
-                              style: TextStyle(
-                                fontFamily: 'Lato',
-                                fontWeight: FontWeight.w800,
-                                fontSize: 12.5,
-                                color: Color(0xFF20B08D),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        width: 34,
-                        height: 34,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF20B08D),
-                          shape: BoxShape.circle,
-                        ),
-                        alignment: Alignment.center,
-                        child: const Icon(
-                          Icons.keyboard_double_arrow_right_rounded,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              const TouristMapBannerTile(),
 
               const SizedBox(height: 24),
 
@@ -463,7 +316,7 @@ class HomeDashboardScreen extends StatelessWidget {
                         ),
                         _buildServiceCard(
                           context: context,
-                          label: '26th Hornbill\nFestival',
+                          label: '27th Hornbill\nFestival',
                           iconAsset: 'assets/images/hornbill.png',
                           onTap: () {
                             if (onSwitchTab != null) {
@@ -578,8 +431,8 @@ class HomeDashboardScreen extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontFamily: 'Lato',
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12.5,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13.5,
                   color: Colors.black,
                   height: 1.2,
                 ),
@@ -590,4 +443,304 @@ class HomeDashboardScreen extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildHomeFeatureCard({
+    required BuildContext context,
+    required String iconAsset,
+    required String eyebrow,
+    required String title,
+    required String actionLabel,
+    required VoidCallback onTap,
+    Gradient? gradient,
+    CustomPainter? backgroundPainter,
+    IconData? watermarkIcon,
+    Color? watermarkColor,
+    Color? actionColor,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        gradient: gradient,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Stack(
+          children: [
+            // Custom Background Element (Painter)
+            if (backgroundPainter != null)
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: backgroundPainter,
+                ),
+              ),
+
+            // Subtle Watermark Icon in background
+            if (watermarkIcon != null)
+              Positioned(
+                right: -8,
+                bottom: -10,
+                child: IgnorePointer(
+                  child: Opacity(
+                    opacity: 0.045,
+                    child: Icon(
+                      watermarkIcon,
+                      size: 88,
+                      color: watermarkColor ?? const Color(0xFF003848),
+                    ),
+                  ),
+                ),
+              ),
+
+            // Foreground Content with InkWell
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onTap: onTap,
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Row(
+                    children: [
+                      // Left Icon / Emblem
+                      SizedBox(
+                        width: 58,
+                        height: 52,
+                        child: Image.asset(
+                          iconAsset,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+
+                      // Center Text (Eyebrow, Title, Action Tag)
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              eyebrow,
+                              style: const TextStyle(
+                                fontFamily: 'Lato',
+                                fontWeight: FontWeight.w700,
+                                fontSize: 11,
+                                letterSpacing: 0.6,
+                                color: Color(0xFF64748B),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontFamily: 'Lato',
+                                fontWeight: FontWeight.w900,
+                                fontSize: 17,
+                                letterSpacing: -0.3,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              actionLabel,
+                              style: TextStyle(
+                                fontFamily: 'Lato',
+                                fontWeight: FontWeight.w800,
+                                fontSize: 12.5,
+                                color: actionColor ?? const Color(0xFF0D9488),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Subtle viewfinder & camera frame background elements for Photo Contest tile
+class _PhotoContestBackgroundPainter extends CustomPainter {
+  const _PhotoContestBackgroundPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final strokePaint = Paint()
+      ..color = const Color(0xFFF59E0B).withValues(alpha: 0.09)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.3
+      ..strokeCap = StrokeCap.round;
+
+    // Viewfinder bracket (top-right corner of camera frame)
+    final bx = size.width * 0.88;
+    final by = size.height * 0.28;
+    const blen = 16.0;
+    final path1 = Path()
+      ..moveTo(bx - blen, by)
+      ..lineTo(bx, by)
+      ..lineTo(bx, by + blen);
+    canvas.drawPath(path1, strokePaint);
+
+    // Viewfinder bracket (bottom-right corner)
+    final by2 = size.height * 0.72;
+    final path2 = Path()
+      ..moveTo(bx, by2 - blen)
+      ..lineTo(bx, by2)
+      ..lineTo(bx - blen, by2);
+    canvas.drawPath(path2, strokePaint);
+
+    // Center focal point / crosshair
+    final fx = size.width * 0.78;
+    final fy = size.height * 0.50;
+    final crossPaint = Paint()
+      ..color = const Color(0xFFF59E0B).withValues(alpha: 0.12)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+    canvas.drawLine(Offset(fx - 6, fy), Offset(fx + 6, fy), crossPaint);
+    canvas.drawLine(Offset(fx, fy - 6), Offset(fx, fy + 6), crossPaint);
+
+    // Soft focus circle
+    final circlePaint = Paint()
+      ..color = const Color(0xFFD97706).withValues(alpha: 0.08)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+    canvas.drawCircle(Offset(fx, fy), 18, circlePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Subtle mountain ridge & summit waypoint background elements for Discover Viewpoint tile
+class _ViewpointBackgroundPainter extends CustomPainter {
+  const _ViewpointBackgroundPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final ridgePaint = Paint()
+      ..color = const Color(0xFF0284C7).withValues(alpha: 0.08)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.3
+      ..strokeCap = StrokeCap.round;
+
+    // Mountain ridge 1 (foreground ridge)
+    final path1 = Path();
+    path1.moveTo(size.width * 0.52, size.height);
+    path1.lineTo(size.width * 0.68, size.height * 0.38);
+    path1.lineTo(size.width * 0.78, size.height * 0.58);
+    path1.lineTo(size.width * 0.90, size.height * 0.28);
+    path1.lineTo(size.width, size.height * 0.52);
+    canvas.drawPath(path1, ridgePaint);
+
+    // Distant mountain ridge 2
+    final ridgePaint2 = Paint()
+      ..color = const Color(0xFF0D9488).withValues(alpha: 0.06)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.1
+      ..strokeCap = StrokeCap.round;
+    final path2 = Path();
+    path2.moveTo(size.width * 0.60, size.height);
+    path2.lineTo(size.width * 0.76, size.height * 0.44);
+    path2.lineTo(size.width * 0.85, size.height * 0.62);
+    path2.lineTo(size.width, size.height * 0.36);
+    canvas.drawPath(path2, ridgePaint2);
+
+    // Peak marker / glowing summit star
+    final sunPaint = Paint()
+      ..color = const Color(0xFF0284C7).withValues(alpha: 0.18)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(
+        Offset(size.width * 0.90, size.height * 0.28), 2.5, sunPaint);
+
+    final ringPaint = Paint()
+      ..color = const Color(0xFF0284C7).withValues(alpha: 0.12)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+    canvas.drawCircle(
+        Offset(size.width * 0.90, size.height * 0.28), 6.0, ringPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Subtle editorial open booklet & column layout background elements for Tourism e-Magazine tile
+class _MagazineBackgroundPainter extends CustomPainter {
+  const _MagazineBackgroundPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final pagePaint = Paint()
+      ..color = const Color(0xFF003848).withValues(alpha: 0.07)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2
+      ..strokeCap = StrokeCap.round;
+
+    // Editorial open booklet curves (curved pages)
+    final path1 = Path();
+    path1.moveTo(size.width * 0.65, size.height * 0.20);
+    path1.cubicTo(
+      size.width * 0.76,
+      size.height * 0.16,
+      size.width * 0.86,
+      size.height * 0.28,
+      size.width * 0.96,
+      size.height * 0.24,
+    );
+    canvas.drawPath(path1, pagePaint);
+
+    final path2 = Path();
+    path2.moveTo(size.width * 0.65, size.height * 0.82);
+    path2.cubicTo(
+      size.width * 0.76,
+      size.height * 0.78,
+      size.width * 0.86,
+      size.height * 0.90,
+      size.width * 0.96,
+      size.height * 0.86,
+    );
+    canvas.drawPath(path2, pagePaint);
+
+    // Spine line
+    canvas.drawLine(
+      Offset(size.width * 0.65, size.height * 0.20),
+      Offset(size.width * 0.65, size.height * 0.82),
+      pagePaint,
+    );
+
+    // Subtle editorial column lines
+    final linePaint = Paint()
+      ..color = const Color(0xFF003848).withValues(alpha: 0.06)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+    for (int i = 0; i < 3; i++) {
+      final y = size.height * (0.38 + i * 0.12);
+      canvas.drawLine(
+        Offset(size.width * 0.72, y),
+        Offset(size.width * 0.92, y),
+        linePaint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

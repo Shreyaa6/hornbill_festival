@@ -1,0 +1,88 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isValidUser() {
+      return request.auth != null;
+    }
+
+    // App config for dynamic URLs & mandatory updates (both iOS & Android)
+    match /app_config_festival/{configId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Public festival information: read-only for all users, write restricted to admin/dashboard
+    match /hotels/{hotelId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /landmarks/{landmarkId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /cafes/{cafeId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /tour_operators/{operatorId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /circulars/{circularId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /rooms/{roomId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /stalls/{stallId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Photo Contest submissions & voting
+    match /submissions/{submissionId} {
+      allow read: if true;
+      // Allow users to create submission or increment vote count
+      allow create, update: if true;
+      allow delete: if false;
+    }
+
+    // User votes tracking (which submissions a user has voted for)
+    match /userVotes/{userId} {
+      allow read, write: if true;
+    }
+
+    // Service queries / call lead logs
+    match /queries/{queryId} {
+      allow read: if true;
+      allow create, delete: if true;
+      allow update: if false;
+    }
+
+    // User accounts collection
+    match /users/{userId} {
+      // Allow reading user profile by email query during login or profile check
+      allow read: if true;
+      // Allow account registration (create)
+      allow create: if request.resource.data.email is string;
+      // Allow user to update or delete their account
+      allow update, delete: if true;
+    }
+
+    // Default fallback for any unlisted collections
+    match /{document=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}

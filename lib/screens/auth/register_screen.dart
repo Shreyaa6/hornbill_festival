@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 import '../../data/mock_user.dart';
 import '../../services/firebase_service.dart';
+import '../../widgets/filter_bottom_sheet.dart';
+import '../main_navigation_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   final VoidCallback? onRegisterSuccess;
@@ -24,15 +26,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isLoading = false;
 
   final List<String> _states = [
-    "Nagaland",
+    "Arunachal Pradesh",
     "Assam",
     "Manipur",
     "Meghalaya",
     "Mizoram",
-    "Arunachal Pradesh",
+    "Nagaland",
     "Tripura",
     "Other State / Country"
   ];
+
+  void _showStatePicker() async {
+    final selected = await showAppFilterBottomSheet(
+      context: context,
+      title: 'Select State',
+      items: _states,
+      selectedItem: _selectedState,
+      sortAlphabetically: false,
+    );
+    if (selected != null && mounted) {
+      setState(() {
+        _selectedState = selected;
+      });
+    }
+  }
 
   void _handleRegister() async {
     setState(() => _error = null);
@@ -69,31 +86,51 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       await MockUser().setLoggedInUser(user);
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Account created for ${user.fullName}!'),
-            backgroundColor: const Color(0xFF20B08D),
-          ),
-        );
-      }
-
       if (widget.onRegisterSuccess != null) {
         widget.onRegisterSuccess!();
-        if (mounted) {
-          Navigator.of(context).popUntil((route) => route.isFirst);
-        }
       } else if (mounted) {
-        Navigator.pop(context);
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
+          (route) => false,
+        );
       }
     } catch (e) {
-      final msg = e.toString().replaceAll('Exception:', '').trim();
+      final msg = _cleanErrorMessage(e);
       setState(() => _error = msg);
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  String _cleanErrorMessage(dynamic error) {
+    if (error == null) return "An unexpected error occurred. Please try again.";
+    final str = error.toString().toLowerCase();
+
+    if (str.contains('already in use') || str.contains('already exists') || str.contains('email-already-in-use')) {
+      return 'An account with this email already exists. Please log in.';
+    }
+    if (str.contains('invalid-email') || str.contains('invalid email')) {
+      return 'Please enter a valid email address.';
+    }
+    if (str.contains('weak-password')) {
+      return 'Password is too weak. Please use at least 6 characters.';
+    }
+    if (str.contains('network') || str.contains('unavailable') || str.contains('timeout') || str.contains('socket')) {
+      return 'Network connection issue. Please check your internet connection.';
+    }
+    if (str.contains('firebase') || str.contains('firestore') || str.contains('[core/no-app]') || str.contains('permission')) {
+      return 'Unable to create account right now. Please try again later.';
+    }
+
+    String cleaned = error.toString().replaceAll(RegExp(r'^(Exception:|Error:)\s*', caseSensitive: false), '').trim();
+    cleaned = cleaned.replaceAll(RegExp(r'\[.*?\]\s*'), '').trim();
+    if (cleaned.isEmpty || cleaned.toLowerCase().contains('firebase') || cleaned.toLowerCase().contains('firestore')) {
+      return 'Unable to register. Please check your details and try again.';
+    }
+    return cleaned;
   }
 
   @override
@@ -280,26 +317,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const SizedBox(height: 14),
 
               // State Dropdown
-              Container(
-                height: 59,
-                padding: const EdgeInsets.symmetric(horizontal: 18),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(15),
-                  border: Border.all(color: const Color(0xFFDADADA)),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _selectedState,
-                    isExpanded: true,
-                    icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF5D5D5D)),
-                    style: _inputTextStyle,
-                    onChanged: (val) {
-                      if (val != null) setState(() => _selectedState = val);
-                    },
-                    items: _states.map((s) {
-                      return DropdownMenuItem(value: s, child: Text(s));
-                    }).toList(),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _showStatePicker,
+                child: Container(
+                  height: 59,
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(color: const Color(0xFFDADADA)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        _selectedState,
+                        style: _inputTextStyle,
+                      ),
+                      const Icon(Icons.keyboard_arrow_down, color: Color(0xFF5D5D5D)),
+                    ],
                   ),
                 ),
               ),

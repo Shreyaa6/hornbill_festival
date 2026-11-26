@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+version: 2.5.5+31
 
 environment:
   sdk: ^3.10.8
@@ -37,9 +37,16 @@ dependencies:
   url_launcher: ^6.3.2
   cached_network_image: ^3.4.1
   share_plus: ^13.3.1
-  firebase_core: ^5.1.0
-  cloud_firestore: ^7.1.0
+  firebase_core: ^5.2.0
+  cloud_firestore: ^7.2.0
   shared_preferences: ^2.5.5
+  flutter_map: ^8.3.2
+  latlong2: ^0.10.1
+  webview_flutter: ^4.14.1
+  geolocator: ^14.1.2
+  image_picker: ^1.2.4
+  firebase_storage: ^14.1.0
+  path_provider: ^2.1.6
 
 dev_dependencies:
   flutter_test:
@@ -67,6 +74,15 @@ flutter:
   assets:
     - assets/images/
     - assets/images/tourist_map/
+    - assets/images/posters/
+    - assets/images/hotels/
+    - assets/images/clean_districts/
+    - assets/images/spots/
+    - assets/images/carousel/
+    - assets/images/cafes/
+    - assets/images/icons/
+    - assets/images/landmarks/
+    - assets/images/tribes/
     - assets/fonts/
 
   # Fonts
@@ -74,12 +90,32 @@ flutter:
     - family: Lato
       fonts:
         - asset: assets/fonts/latoregular.ttf
+          weight: 300
+        - asset: assets/fonts/latoregular.ttf
+          weight: 400
+        - asset: assets/fonts/latoregular.ttf
+          weight: 500
+        - asset: assets/fonts/latoregular.ttf
+          weight: 600
         - asset: assets/fonts/latobold.ttf
           weight: 700
+        - asset: assets/fonts/latobold.ttf
+          weight: 800
+        - asset: assets/fonts/latobold.ttf
+          weight: 900
     - family: Poppins
       fonts:
         - asset: assets/fonts/poppinsmedium.ttf
+          weight: 400
+        - asset: assets/fonts/poppinsmedium.ttf
           weight: 500
+        - asset: assets/fonts/poppinsmedium.ttf
+          weight: 600
+        - asset: assets/fonts/poppinsmedium.ttf
+          weight: 700
     - family: DancingScript
       fonts:
         - asset: assets/fonts/DancingScript.ttf
+    - family: GreatVibes
+      fonts:
+        - asset: assets/fonts/GreatVibes.ttf

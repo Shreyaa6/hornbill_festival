@@ -1,23 +1,28 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 class CustomCarousel extends StatefulWidget {
   final List<String> images;
-  final double height;
+  final double? height;
+  final double? aspectRatio;
   final double borderRadius;
   final bool autoPlay;
   final Duration autoPlayInterval;
   final EdgeInsetsGeometry margin;
+  final BoxFit fit;
 
   const CustomCarousel({
     super.key,
     required this.images,
-    this.height = 165,
-    this.borderRadius = 12,
+    this.height,
+    this.aspectRatio = 16 / 9,
+    this.borderRadius = 16,
     this.autoPlay = true,
     this.autoPlayInterval = const Duration(seconds: 4),
-    this.margin = const EdgeInsets.symmetric(horizontal: 16),
+    this.margin = const EdgeInsets.symmetric(horizontal: 20),
+    this.fit = BoxFit.cover,
   });
 
   @override
@@ -54,13 +59,19 @@ class _CustomCarouselState extends State<CustomCarousel> {
     super.dispose();
   }
 
+  String? _getCarouselLocalAsset(String url) {
+    if (url.contains('thumbnail_1')) return 'assets/images/carousel/thumbnail_1.jpg';
+    if (url.contains('thumbnail_4')) return 'assets/images/carousel/thumbnail_4.jpg';
+    if (url.contains('thumbnail_5')) return 'assets/images/carousel/thumbnail_5.jpg';
+    if (url.contains('thumbnail_6')) return 'assets/images/carousel/thumbnail_6.jpg';
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (widget.images.isEmpty) return const SizedBox.shrink();
 
-    return Container(
-      margin: widget.margin,
-      height: widget.height,
+    final carouselBody = Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(widget.borderRadius),
         boxShadow: [
@@ -86,27 +97,42 @@ class _CustomCarouselState extends State<CustomCarousel> {
                 if (img.startsWith('assets/')) {
                   return Image.asset(
                     img,
-                    fit: BoxFit.cover,
+                    fit: widget.fit,
+                    width: double.infinity,
+                  );
+                }
+                final localAsset = _getCarouselLocalAsset(img);
+                if (kIsWeb && localAsset != null) {
+                  return Image.asset(
+                    localAsset,
+                    fit: widget.fit,
                     width: double.infinity,
                   );
                 }
                 return CachedNetworkImage(
                   imageUrl: img,
-                  fit: BoxFit.cover,
+                  fit: widget.fit,
                   width: double.infinity,
+                  memCacheWidth: 900,
+                  fadeInDuration: const Duration(milliseconds: 120),
                   placeholder: (context, url) => Container(
                     color: const Color(0xFFECECEC),
-                    child: const Center(
-                      child: CircularProgressIndicator(
-                        color: Color(0xFF20B08D),
-                        strokeWidth: 2,
-                      ),
-                    ),
                   ),
-                  errorWidget: (context, url, error) => Image.asset(
-                    'assets/images/banner_1.png',
-                    fit: BoxFit.cover,
-                  ),
+                  errorWidget: (context, url, error) {
+                    final local = _getCarouselLocalAsset(url);
+                    if (local != null) {
+                      return Image.asset(
+                        local,
+                        fit: widget.fit,
+                        width: double.infinity,
+                      );
+                    }
+                    return Image.asset(
+                      'assets/images/carousel/thumbnail_1.jpg',
+                      fit: widget.fit,
+                      width: double.infinity,
+                    );
+                  },
                 );
               },
             ),
@@ -135,6 +161,22 @@ class _CustomCarouselState extends State<CustomCarousel> {
               ),
           ],
         ),
+      ),
+    );
+
+    if (widget.height != null) {
+      return Container(
+        margin: widget.margin,
+        height: widget.height,
+        child: carouselBody,
+      );
+    }
+
+    return Padding(
+      padding: widget.margin,
+      child: AspectRatio(
+        aspectRatio: widget.aspectRatio ?? (16 / 9),
+        child: carouselBody,
       ),
     );
   }
