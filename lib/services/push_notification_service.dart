@@ -27,16 +27,24 @@ class PushNotificationService {
   bool _initialized = false;
   bool _permissionRequested = false;
 
+  /// Call once at app startup. Sets up background/tap listeners only — never
+  /// triggers an iOS notification permission prompt.
   Future<void> initialize() async {
     if (_initialized || kIsWeb) return;
     _initialized = true;
 
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-    final messaging = FirebaseMessaging.instance;
 
-    // Initialize local notifications for Android foreground display + tap handling
+    // ---- Local notifications (Android foreground + tap handling) ----
     const androidInit = AndroidInitializationSettings('ic_stat_notification');
-    const darwinInit = DarwinInitializationSettings();
+    // All Darwin permission flags set to false so iOS never shows the system
+    // permission prompt here. The prompt is deferred to requestPermissionAndSubscribe()
+    // which is only called after the user reaches the Home screen.
+    const darwinInit = DarwinInitializationSettings(
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
+    );
     const initSettings = InitializationSettings(
       android: androidInit,
       iOS: darwinInit,
@@ -63,6 +71,8 @@ class PushNotificationService {
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(androidChannel);
+
+    // ---- FCM listeners (safe — no permission prompt) ----
 
     // Display foreground notifications on Android via local notifications
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
@@ -100,15 +110,15 @@ class PushNotificationService {
     });
 
     // Handle notification tap when app was terminated
-    final initialMessage = await messaging.getInitialMessage();
+    final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
     if (initialMessage != null) {
-      // Wait briefly for splash -> main navigation to settle before pushing
       Future.delayed(const Duration(milliseconds: 1200), () {
         _openNotificationFromRemoteMessage(initialMessage);
       });
     }
 
-    // If permission was already granted previously, subscribe right away without prompting
+    // If permission was already granted on a previous launch, re-apply foreground
+    // options and re-subscribe — no prompt is shown when status is already granted.
     final currentSettings = await FirebaseMessaging.instance.getNotificationSettings();
     if (currentSettings.authorizationStatus == AuthorizationStatus.authorized ||
         currentSettings.authorizationStatus == AuthorizationStatus.provisional) {
@@ -118,10 +128,12 @@ class PushNotificationService {
         sound: true,
       );
       _subscribeToTopic(FirebaseMessaging.instance);
+      _permissionRequested = true; // skip re-asking in requestPermissionAndSubscribe
     }
   }
 
-  /// Requests notification permission (called once when the user reaches Home).
+  /// Requests notification permission. Called once when the logged-in user
+  /// reaches the Home screen. Never called at startup.
   Future<void> requestPermissionAndSubscribe() async {
     if (_permissionRequested || kIsWeb) return;
     _permissionRequested = true;
@@ -134,13 +146,15 @@ class PushNotificationService {
     );
     debugPrint('[FCM] Authorization status: ${settings.authorizationStatus}');
 
-    await messaging.setForegroundNotificationPresentationOptions(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
-
-    _subscribeToTopic(messaging);
+    if (settings.authorizationStatus == AuthorizationStatus.authorized ||
+        settings.authorizationStatus == AuthorizationStatus.provisional) {
+      await messaging.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      _subscribeToTopic(messaging);
+    }
   }
 
   void _openNotificationFromRemoteMessage(RemoteMessage message) {
