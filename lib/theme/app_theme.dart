@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -189,6 +190,16 @@ class AppTextStyles {
 }
 
 class AppTheme {
+  /// Returns true on Android devices using the classic 3-button navigation bar
+  /// (~48dp bottom inset) so content stays above the action buttons, while
+  /// returning false on iOS and Android gesture navigation for edge-to-edge UI.
+  static bool needsBottomSafeArea(BuildContext context) {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return false;
+    }
+    return MediaQuery.of(context).viewPadding.bottom >= 36;
+  }
+
   static ThemeData get themeData {
     return ThemeData(
       useMaterial3: true,

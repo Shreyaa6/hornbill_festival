@@ -50,7 +50,7 @@ class _HornbillHomeScreenState extends State<HornbillHomeScreen> {
     return Scaffold(
       backgroundColor: headerColor,
       body: SafeArea(
-        bottom: true,
+        bottom: AppTheme.needsBottomSafeArea(context),
         child: Column(
           children: [
             // Deep Navy Top Header (Matching Book Taxis, Cafes, etc.)

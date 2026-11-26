@@ -308,7 +308,7 @@ class _ServiceQueriesScreenState extends State<ServiceQueriesScreen> {
     return Scaffold(
       backgroundColor: headerColor,
       body: SafeArea(
-        bottom: true,
+        bottom: AppTheme.needsBottomSafeArea(context),
         child: Column(
           children: [
             // Header Bar

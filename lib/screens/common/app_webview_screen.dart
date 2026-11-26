@@ -80,7 +80,7 @@ class _AppWebViewScreenState extends State<AppWebViewScreen> {
     return Scaffold(
       backgroundColor: headerColor,
       body: SafeArea(
-        bottom: true,
+        bottom: AppTheme.needsBottomSafeArea(context),
         child: Column(
           children: [
             // Deep Teal Curved Header (matches NotificationsScreen style with NO back button)

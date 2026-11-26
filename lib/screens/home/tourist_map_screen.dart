@@ -650,7 +650,7 @@ class _TouristMapScreenState extends State<TouristMapScreen> {
         return Scaffold(
           backgroundColor: const Color(0xFF003848),
           body: SafeArea(
-            bottom: true,
+            bottom: AppTheme.needsBottomSafeArea(context),
             child: Column(
               children: [
                 // 1. Dark Teal Top Header Row (Title & Map/Sat Toggler)

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 import '../widgets/custom_bottom_bar.dart';
 import '../widgets/app_header_bar.dart';
 import '../services/app_config_service.dart';
@@ -87,7 +88,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       backgroundColor: scaffoldBg,
       body: SafeArea(
         top: shouldShowHeader,
-        bottom: true,
+        bottom: AppTheme.needsBottomSafeArea(context),
         child: Column(
           children: [
             // Universal Header pinned at top when not on a hero banner screen

@@ -177,7 +177,7 @@ class _CafesScreenState extends State<CafesScreen> {
     return Scaffold(
       backgroundColor: headerColor,
       body: SafeArea(
-        bottom: true,
+        bottom: AppTheme.needsBottomSafeArea(context),
         child: Column(
           children: [
             // Header Section

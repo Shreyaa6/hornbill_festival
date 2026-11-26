@@ -362,7 +362,7 @@ class _DiscoverViewpointScreenState extends State<DiscoverViewpointScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF003848),
       body: SafeArea(
-        bottom: true,
+        bottom: AppTheme.needsBottomSafeArea(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

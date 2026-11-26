@@ -739,7 +739,7 @@ class PhotoContestScreenState extends State<PhotoContestScreen> {
       child: Scaffold(
         backgroundColor: headerColor,
         body: SafeArea(
-          bottom: true,
+          bottom: AppTheme.needsBottomSafeArea(context),
           child: Stack(
             children: [
               Column(

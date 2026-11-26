@@ -10,6 +10,7 @@ import 'screens/intro/app_intro_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
 import 'services/app_config_service.dart';
+import 'services/push_notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,6 +18,8 @@ void main() async {
     await Firebase.initializeApp();
     // Start real-time Firestore listener for instant in-app update trigger
     AppConfigService().startLiveConfigListener();
+    // Initialize FCM push notifications & subscribe to 'all_users'
+    await PushNotificationService().initialize();
   } catch (e) {
     debugPrint("Firebase initialization failed: $e");
   }

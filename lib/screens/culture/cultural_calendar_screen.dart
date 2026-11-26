@@ -778,7 +778,7 @@ Explore the Nagaland Cultural Calendar on the Hornbill Festival App!
         return Scaffold(
           backgroundColor: const Color(0xFF003848),
           body: SafeArea(
-            bottom: true,
+            bottom: AppTheme.needsBottomSafeArea(context),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

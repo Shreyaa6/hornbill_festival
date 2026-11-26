@@ -173,7 +173,7 @@ class _HotelsScreenState extends State<HotelsScreen> {
       body: Stack(
         children: [
           SafeArea(
-            bottom: true,
+            bottom: AppTheme.needsBottomSafeArea(context),
             child: Column(
               children: [
             // Dark Teal Top Header

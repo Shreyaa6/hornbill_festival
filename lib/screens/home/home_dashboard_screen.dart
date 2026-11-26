@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../data/app_data.dart';
 import '../../data/mock_user.dart';
 import '../../services/firebase_service.dart';
+import '../../services/push_notification_service.dart';
 import '../../widgets/custom_carousel.dart';
 import 'hotels_screen.dart';
 import 'trips_screen.dart';
@@ -38,6 +39,11 @@ class HomeDashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final mockUser = MockUser();
+    if (mockUser.isLoggedIn) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        PushNotificationService().requestPermissionAndSubscribe();
+      });
+    }
     final bottomInset = MediaQuery.of(context).padding.bottom > 0
         ? MediaQuery.of(context).padding.bottom
         : MediaQuery.of(context).viewPadding.bottom;

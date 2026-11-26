@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../../theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/tribe.dart';
@@ -135,7 +136,7 @@ class _TribesScreenState extends State<TribesScreen> {
       backgroundColor: Colors.white,
       body: SafeArea(
         top: false,
-        bottom: true,
+        bottom: AppTheme.needsBottomSafeArea(context),
         child: StreamBuilder<List<Tribe>>(
         stream: FirebaseService().getTribesStream(),
         initialData: AppData.tribes,

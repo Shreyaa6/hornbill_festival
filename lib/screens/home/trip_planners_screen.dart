@@ -194,7 +194,7 @@ class _TripPlannersScreenState extends State<TripPlannersScreen> {
     return Scaffold(
       backgroundColor: headerColor,
       body: SafeArea(
-        bottom: true,
+        bottom: AppTheme.needsBottomSafeArea(context),
         child: Stack(
           children: [
             Column(

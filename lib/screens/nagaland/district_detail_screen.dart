@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../theme/app_theme.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../data/nagaland_data.dart';
@@ -56,7 +57,7 @@ class _DistrictDetailScreenState extends State<DistrictDetailScreen> {
       backgroundColor: Colors.white,
       body: SafeArea(
         top: false,
-        bottom: true,
+        bottom: AppTheme.needsBottomSafeArea(context),
         child: Stack(
         children: [
           // Scrollable Content

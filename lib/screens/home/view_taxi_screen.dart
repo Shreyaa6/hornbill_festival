@@ -67,7 +67,7 @@ class ViewTaxiScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFF003848),
       body: SafeArea(
-        bottom: true,
+        bottom: AppTheme.needsBottomSafeArea(context),
         child: Column(
           children: [
             // Deep Teal Header matching TaxisScreen (no back button, no header vehicle icon)

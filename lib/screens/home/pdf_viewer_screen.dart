@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../theme/app_theme.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../../services/firebase_service.dart';
 import '../../services/security_service.dart';
@@ -119,7 +120,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        bottom: true,
+        bottom: AppTheme.needsBottomSafeArea(context),
         child: Column(
           children: [
             _buildHeader(context),

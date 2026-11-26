@@ -135,7 +135,7 @@ class _TourGuidesScreenState extends State<TourGuidesScreen> {
     return Scaffold(
       backgroundColor: headerColor,
       body: SafeArea(
-        bottom: true,
+        bottom: AppTheme.needsBottomSafeArea(context),
         child: Column(
           children: [
             // Deep Teal Top Header

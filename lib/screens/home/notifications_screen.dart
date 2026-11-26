@@ -100,11 +100,13 @@ DateTime? parseNotificationDate(dynamic rawDate) {
 class NotificationsScreen extends StatefulWidget {
   final bool embedded;
   final ValueChanged<int>? onSwitchTab;
+  final Map<String, dynamic>? initialNotification;
 
   const NotificationsScreen({
     super.key,
     this.embedded = false,
     this.onSwitchTab,
+    this.initialNotification,
   });
 
   @override
@@ -113,6 +115,18 @@ class NotificationsScreen extends StatefulWidget {
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
   final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialNotification != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _handleNotificationTap(Map<String, dynamic>.from(widget.initialNotification!));
+        }
+      });
+    }
+  }
 
   final List<Map<String, dynamic>> _defaultNotifications = [
     {
@@ -437,7 +451,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         return Scaffold(
           backgroundColor: headerColor,
           body: SafeArea(
-            bottom: true,
+            bottom: AppTheme.needsBottomSafeArea(context),
             child: Column(
               children: [
                 // Deep Teal Top Header (matches TaxisScreen style)

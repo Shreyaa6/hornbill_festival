@@ -54,7 +54,7 @@ class _TripsScreenState extends State<TripsScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF003848),
       body: SafeArea(
-        bottom: true,
+        bottom: AppTheme.needsBottomSafeArea(context),
         child: Column(
           children: [
             // Deep Teal Top Header

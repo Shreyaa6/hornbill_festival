@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../../theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../services/firebase_service.dart';
@@ -310,7 +311,7 @@ class _FestivalsScreenState extends State<FestivalsScreen> {
       backgroundColor: Colors.white,
       body: SafeArea(
         top: false,
-        bottom: true,
+        bottom: AppTheme.needsBottomSafeArea(context),
         child: Stack(
         children: [
           // Scrollable Content

@@ -20,7 +20,7 @@ class HornbillProgramsScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: headerColor,
       body: SafeArea(
-        bottom: true,
+        bottom: AppTheme.needsBottomSafeArea(context),
         child: Column(
           children: [
             // Deep Teal Top Header (matches Notifications / TaxisScreen style)
