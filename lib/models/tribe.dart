@@ -19,6 +19,8 @@ class Tribe {
     this.createdAt,
   });
 
+  String get uniqueKey => docId.isNotEmpty ? docId : '${id}_$name';
+
   factory Tribe.fromMap(Map<String, dynamic> map, [String? docId, int? fallbackId]) {
     final name = (map['name'] ?? map['tribe'] ?? '').toString();
     final district = (map['district'] ?? '').toString();
@@ -27,17 +29,21 @@ class Tribe {
     final festival = (map['festival'] ?? map['festivalName'] ?? '').toString();
     final createdAt = map['createdAt']?.toString();
 
-    // Determine numerical ID (1..18)
+    // Determine numerical serialno / ID
     int id = fallbackId ?? 0;
-    if (map['id'] != null) {
-      if (map['id'] is int) {
-        id = map['id'] as int;
+    final rawSerial = map['serialno'] ?? map['serialNo'] ?? map['serial_no'] ?? map['id'];
+    if (rawSerial != null) {
+      if (rawSerial is num) {
+        id = rawSerial.toInt();
       } else {
-        id = int.tryParse(map['id'].toString()) ?? id;
+        id = int.tryParse(rawSerial.toString()) ?? id;
       }
     }
     if (id <= 0) {
       id = idFromName(name);
+    }
+    if (id <= 0) {
+      id = 999;
     }
 
     return Tribe(

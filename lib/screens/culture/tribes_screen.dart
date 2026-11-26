@@ -20,8 +20,9 @@ class TribesScreen extends StatefulWidget {
 }
 
 class _TribesScreenState extends State<TribesScreen> {
-  // Currently expanded tribe ID (single-expansion accordion). Angami (#1) is expanded initially by default, matching FestivalsScreen.
-  int? _expandedId = 1;
+  // Currently expanded tribe key (unique docId/key so only 1 item ever expands).
+  String? _expandedKey;
+  bool _didInitExpansion = false;
 
   @override
   void initState() {
@@ -34,17 +35,18 @@ class _TribesScreenState extends State<TribesScreen> {
             t.district.toLowerCase().contains(queryLower),
       );
       if (match != -1) {
-        _expandedId = AppData.tribes[match].id;
+        _expandedKey = AppData.tribes[match].uniqueKey;
+        _didInitExpansion = true;
       }
     }
   }
 
-  void _toggleExpansion(int id) {
+  void _toggleExpansion(String key) {
     setState(() {
-      if (_expandedId == id) {
-        _expandedId = null;
+      if (_expandedKey == key) {
+        _expandedKey = null;
       } else {
-        _expandedId = id;
+        _expandedKey = key;
       }
     });
   }
@@ -139,6 +141,10 @@ class _TribesScreenState extends State<TribesScreen> {
         initialData: AppData.tribes,
         builder: (context, snapshot) {
           final tribes = snapshot.data ?? AppData.tribes;
+          if (!_didInitExpansion && tribes.isNotEmpty) {
+            _expandedKey = tribes.first.uniqueKey;
+            _didInitExpansion = true;
+          }
 
           return Stack(
             children: [
@@ -235,7 +241,7 @@ class _TribesScreenState extends State<TribesScreen> {
                               itemBuilder: (context, index) {
                                 final tribe = tribes[index];
                                 final isExpanded =
-                                    _expandedId == tribe.id;
+                                    _expandedKey == tribe.uniqueKey;
                                 return _buildTribeAccordionCard(
                                   tribe: tribe,
                                   isExpanded: isExpanded,
@@ -321,7 +327,7 @@ class _TribesScreenState extends State<TribesScreen> {
         children: [
           // Header Row (Always visible & tappable)
           InkWell(
-            onTap: () => _toggleExpansion(tribe.id),
+            onTap: () => _toggleExpansion(tribe.uniqueKey),
             borderRadius: BorderRadius.circular(14),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),

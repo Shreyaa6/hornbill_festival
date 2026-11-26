@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import '../data/nagaland_data.dart';
+import '../data/tourist_map_destinations.dart';
 import '../screens/home/tourist_map_screen.dart';
+import '../services/firebase_service.dart';
 
 class TouristMapBannerTile extends StatelessWidget {
   final EdgeInsetsGeometry margin;
@@ -96,8 +99,8 @@ class TouristMapBannerTile extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
-                          children: const [
-                            Text(
+                          children: [
+                            const Text(
                               'GOOGLE MAPS',
                               style: TextStyle(
                                 fontFamily: 'Lato',
@@ -107,8 +110,8 @@ class TouristMapBannerTile extends StatelessWidget {
                                 color: Color(0xFF64748B),
                               ),
                             ),
-                            SizedBox(height: 2),
-                            Text(
+                            const SizedBox(height: 2),
+                            const Text(
                               'NAGALAND TOURIST MAP',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -120,15 +123,26 @@ class TouristMapBannerTile extends StatelessWidget {
                                 color: Color(0xFF0F172A),
                               ),
                             ),
-                            SizedBox(height: 3),
-                            Text(
-                              '[30 ICONIC SPOTS]',
-                              style: TextStyle(
-                                fontFamily: 'Lato',
-                                fontWeight: FontWeight.w800,
-                                fontSize: 12.5,
-                                color: Color(0xFF0D9488),
-                              ),
+                            const SizedBox(height: 3),
+                            StreamBuilder<List<DistrictInfo>>(
+                              stream: FirebaseService().getDestinations(),
+                              builder: (context, snapshot) {
+                                final rawDistricts =
+                                    (snapshot.hasData && snapshot.data!.isNotEmpty)
+                                        ? snapshot.data!
+                                        : NagalandData.districts;
+                                final totalSpots =
+                                    TouristMapData.fromDistricts(rawDistricts).length;
+                                return Text(
+                                  '[$totalSpots ICONIC SPOTS]',
+                                  style: const TextStyle(
+                                    fontFamily: 'Lato',
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 12.5,
+                                    color: Color(0xFF0D9488),
+                                  ),
+                                );
+                              },
                             ),
                           ],
                         ),

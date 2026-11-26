@@ -22,7 +22,9 @@ class TribalFestival {
     required this.description,
   });
 
-  factory TribalFestival.fromMap(Map<String, dynamic> map, [int fallbackId = 1]) {
+  String get uniqueKey => docId.isNotEmpty ? docId : '${id}_$festivalName';
+
+  factory TribalFestival.fromMap(Map<String, dynamic> map, [int fallbackId = 999]) {
     final rawSerial = map['serialno'] ?? map['serialNo'] ?? map['serial_no'] ?? map['id'];
     int parsedId;
     if (rawSerial is num) {
@@ -92,8 +94,9 @@ class FestivalsScreen extends StatefulWidget {
 }
 
 class _FestivalsScreenState extends State<FestivalsScreen> {
-  // Currently expanded festival ID (single-expansion accordion). Angami (#1) is expanded initially by default.
-  int? _expandedId = 1;
+  // Currently expanded festival key (unique docId/key so only 1 item ever expands).
+  String? _expandedKey;
+  bool _didInitExpansion = false;
 
   static const List<TribalFestival> _defaultFestivals = [
     TribalFestival(
@@ -278,12 +281,12 @@ class _FestivalsScreenState extends State<FestivalsScreen> {
     ),
   ];
 
-  void _toggleExpansion(int id) {
+  void _toggleExpansion(String key) {
     setState(() {
-      if (_expandedId == id) {
-        _expandedId = null;
+      if (_expandedKey == key) {
+        _expandedKey = null;
       } else {
-        _expandedId = id;
+        _expandedKey = key;
       }
     });
   }
@@ -355,6 +358,10 @@ class _FestivalsScreenState extends State<FestivalsScreen> {
                         } else {
                           festivals = _defaultFestivals;
                         }
+                        if (!_didInitExpansion && festivals.isNotEmpty) {
+                          _expandedKey = festivals.first.uniqueKey;
+                          _didInitExpansion = true;
+                        }
 
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -415,7 +422,7 @@ class _FestivalsScreenState extends State<FestivalsScreen> {
                               itemBuilder: (context, index) {
                                 final festival = festivals[index];
                                 final isExpanded =
-                                    _expandedId == festival.id;
+                                    _expandedKey == festival.uniqueKey;
                                 return _buildFestivalAccordionCard(
                                   festival: festival,
                                   isExpanded: isExpanded,
@@ -496,7 +503,7 @@ class _FestivalsScreenState extends State<FestivalsScreen> {
         children: [
           // Header Row (Always visible & tappable)
           InkWell(
-            onTap: () => _toggleExpansion(festival.id),
+            onTap: () => _toggleExpansion(festival.uniqueKey),
             borderRadius: BorderRadius.circular(14),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
